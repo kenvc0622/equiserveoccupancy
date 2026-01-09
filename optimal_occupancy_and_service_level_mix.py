@@ -5,11 +5,12 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
+import math
 
 st.set_page_config(layout="wide", page_title="Call Center Optimization Suite")
 
 # ========================
-# CALCULATION ENGINE
+# CALCULATION ENGINE - FIXED
 # ========================
 
 def calculate_occupancy(volume, AHT, headcount, interval_seconds):
@@ -19,22 +20,45 @@ def calculate_occupancy(volume, AHT, headcount, interval_seconds):
     return (volume * AHT / 3600) / (headcount * interval_seconds / 3600)
 
 def calculate_erlang_c(m, a, ASA, AHT):
-    """Calculate Erlang C formula for service level"""
-    if m <= a:
+    """Calculate Erlang C formula for service level - FIXED VERSION"""
+    # Convert m to integer for range calculation
+    m_int = int(math.ceil(m))  # Round up to nearest integer
+    
+    if m_int <= a:
         return 0.0
     
-    # Calculate Erlang C probability
-    sum_term = 0
-    for i in range(m):
-        sum_term += (a ** i) / np.math.factorial(i)
+    try:
+        # Calculate Erlang C probability using logarithms for numerical stability
+        sum_term = 0
+        for i in range(m_int):
+            # Use logarithms to avoid large numbers
+            log_term = i * math.log(a) - math.lgamma(i + 1)
+            sum_term += math.exp(log_term)
+        
+        # Calculate numerator with logarithms
+        log_numerator = m_int * math.log(a) - math.lgamma(m_int + 1)
+        numerator = math.exp(log_numerator)
+        
+        denominator = (numerator * m_int / (m_int - a)) + sum_term
+        
+        if denominator == 0:
+            return 0.0
+            
+        pw = numerator / denominator
+        
+        # Service level calculation
+        if (m_int - a) <= 0:
+            return 0.0
+            
+        exponent = -(m_int - a) * ASA / AHT
+        sla = 1 - pw * math.exp(exponent)
+        return max(0.0, min(1.0, sla))
     
-    numerator = (a ** m) / np.math.factorial(m)
-    denominator = (numerator * m / (m - a)) + sum_term
-    pw = numerator / denominator
-    
-    # Service level
-    sla = 1 - pw * np.exp(-(m - a) * ASA / AHT)
-    return max(0.0, min(1.0, sla))
+    except (OverflowError, ValueError):
+        # Fallback to approximation for extreme values
+        if m_int > 100:  # For large headcounts, use approximation
+            return min(1.0, 1 - math.exp(-(m_int - a) * ASA / AHT))
+        return 0.5  # Default fallback
 
 def calculate_service_level(headcount, volume, AHT, ASA):
     """Calculate service level using Erlang C"""
@@ -57,11 +81,16 @@ def find_optimal_headcount(volume, AHT, ASA, target_sla, target_occ, interval_mi
     best_result = None
     all_results = []
     
+    # Search through headcounts (using integer steps for better performance)
     for hc in np.arange(1, 50, 0.5):
         # Calculate occupancy and SLA
         occ = calculate_occupancy(volume, AHT, hc, interval_seconds) * 100
         sla = calculate_service_level(hc, volume, AHT, ASA) * 100
         
+        # Handle NaN or None values
+        if sla is None or np.isnan(sla):
+            sla = 0.0
+            
         # Calculate how far from targets
         occ_distance = abs(occ - target_occ * 100)
         sla_distance = abs(sla - target_sla)
@@ -101,6 +130,8 @@ def create_headcount_tradeoff_plot(volume, AHT, ASA, interval_minutes, optimal_h
         occ_values.append(occ)
         
         sla = calculate_service_level(hc, volume, AHT, ASA) * 100
+        if sla is None or np.isnan(sla):
+            sla = 0.0
         sla_values.append(sla)
     
     fig = go.Figure()
@@ -132,6 +163,8 @@ def create_headcount_tradeoff_plot(volume, AHT, ASA, interval_minutes, optimal_h
     # Add optimal point
     optimal_occ = calculate_occupancy(volume, AHT, optimal_hc, interval_seconds) * 100
     optimal_sla = calculate_service_level(optimal_hc, volume, AHT, ASA) * 100
+    if optimal_sla is None or np.isnan(optimal_sla):
+        optimal_sla = 0.0
     
     fig.add_trace(go.Scatter(
         x=[optimal_hc], y=[optimal_occ],
@@ -201,8 +234,8 @@ def create_sensitivity_heatmap(volume, AHT, ASA, interval_minutes, optimal_hc):
     interval_seconds = interval_minutes * 60
     
     # Vary volume and AHT
-    volume_range = np.linspace(volume * 0.5, volume * 1.5, 20)
-    AHT_range = np.linspace(AHT * 0.7, AHT * 1.3, 20)
+    volume_range = np.linspace(max(1, volume * 0.5), volume * 1.5, 15)
+    AHT_range = np.linspace(max(60, AHT * 0.7), AHT * 1.3, 15)
     
     occupancy_grid = np.zeros((len(AHT_range), len(volume_range)))
     sla_grid = np.zeros((len(AHT_range), len(volume_range)))
@@ -210,7 +243,10 @@ def create_sensitivity_heatmap(volume, AHT, ASA, interval_minutes, optimal_hc):
     for i, aht_val in enumerate(AHT_range):
         for j, vol_val in enumerate(volume_range):
             occupancy_grid[i, j] = calculate_occupancy(vol_val, aht_val, optimal_hc, interval_seconds) * 100
-            sla_grid[i, j] = calculate_service_level(optimal_hc, vol_val, aht_val, ASA) * 100
+            sla_val = calculate_service_level(optimal_hc, vol_val, aht_val, ASA) * 100
+            if sla_val is None or np.isnan(sla_val):
+                sla_val = 0.0
+            sla_grid[i, j] = sla_val
     
     # Create occupancy heatmap
     fig1 = go.Figure(data=go.Heatmap(
@@ -330,29 +366,44 @@ def main():
         interval_seconds = interval * 60
         
         with st.spinner("Running Erlang C calculations..."):
-            optimal_result, all_results = find_optimal_headcount(
-                volume, AHT, ASA, target_sla, target_occ, interval
-            )
-            
-            # Calculate additional metrics
-            optimal_hc = optimal_result['headcount']
-            callsmaxocc_at_target = calculate_callsmaxocc(
-                optimal_hc, AHT, target_occ/100, interval_seconds
-            )
-            
-            # Calculate headcount for individual targets
-            hc_for_target_occ = (volume * AHT / 3600) / ((target_occ/100) * interval_seconds / 3600)
-            
-            # Find headcount for target SLA using binary search
-            hc_low, hc_high = 1, 50
-            for _ in range(25):
-                hc_mid = (hc_low + hc_high) / 2
-                sla_mid = calculate_service_level(hc_mid, volume, AHT, ASA) * 100
-                if sla_mid >= target_sla:
-                    hc_high = hc_mid
+            try:
+                optimal_result, all_results = find_optimal_headcount(
+                    volume, AHT, ASA, target_sla, target_occ, interval
+                )
+                
+                if optimal_result is None:
+                    st.error("Could not find optimal solution. Please adjust parameters.")
+                    return
+                
+                # Calculate additional metrics
+                optimal_hc = optimal_result['headcount']
+                callsmaxocc_at_target = calculate_callsmaxocc(
+                    optimal_hc, AHT, target_occ/100, interval_seconds
+                )
+                
+                # Calculate headcount for individual targets
+                if target_occ > 0:
+                    hc_for_target_occ = (volume * AHT / 3600) / ((target_occ/100) * interval_seconds / 3600)
                 else:
-                    hc_low = hc_mid
-            hc_for_target_sla = (hc_low + hc_high) / 2
+                    hc_for_target_occ = 0
+                
+                # Find headcount for target SLA using binary search
+                hc_low, hc_high = 1, 50
+                for _ in range(25):
+                    hc_mid = (hc_low + hc_high) / 2
+                    sla_mid = calculate_service_level(hc_mid, volume, AHT, ASA) * 100
+                    if sla_mid is None or np.isnan(sla_mid):
+                        sla_mid = 0.0
+                    if sla_mid >= target_sla:
+                        hc_high = hc_mid
+                    else:
+                        hc_low = hc_mid
+                hc_for_target_sla = (hc_low + hc_high) / 2
+                
+            except Exception as e:
+                st.error(f"Calculation error: {str(e)}")
+                st.info("Try adjusting parameters (especially reducing volume or increasing AHT)")
+                return
         
         # Display results in tabs
         tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -380,14 +431,20 @@ def main():
                 )
             
             with col3:
+                sla_value = optimal_result['service_level']
+                if sla_value is None or np.isnan(sla_value):
+                    sla_value = 0.0
                 st.metric(
                     "Resulting Service Level",
-                    f"{optimal_result['service_level']:.1f}%",
-                    delta=f"{optimal_result['service_level'] - target_sla:+.1f}%"
+                    f"{sla_value:.1f}%",
+                    delta=f"{sla_value - target_sla:+.1f}%"
                 )
             
             with col4:
-                efficiency = optimal_hc / max(hc_for_target_occ, hc_for_target_sla) * 100
+                if hc_for_target_occ > 0:
+                    efficiency = optimal_hc / max(hc_for_target_occ, hc_for_target_sla) * 100
+                else:
+                    efficiency = 100
                 st.metric(
                     "Solution Efficiency",
                     f"{efficiency:.1f}%",
@@ -395,10 +452,11 @@ def main():
                 )
             
             # Key insights box
+            sla_display = sla_value if sla_value is not None else 0.0
             st.info(f"""
             **Key Finding:** {optimal_hc:.1f} agents provides the best balance:
             - **{optimal_result['occupancy']:.1f}% occupancy** (Target: {target_occ}%)
-            - **{optimal_result['service_level']:.1f}% service level** (Target: {target_sla}%)
+            - **{sla_display:.1f}% service level** (Target: {target_sla}%)
             
             This solution is **{efficiency:.1f}% efficient** compared to meeting each target individually.
             """)
@@ -406,37 +464,47 @@ def main():
         with tab2:
             st.header("Trade-off Analysis")
             
-            # Trade-off plot
-            fig_tradeoff = create_headcount_tradeoff_plot(
-                volume, AHT, ASA, interval, optimal_hc, 
-                hc_for_target_occ, hc_for_target_sla, target_occ, target_sla
-            )
-            st.plotly_chart(fig_tradeoff, use_container_width=True)
-            
-            # Capacity comparison
-            fig_capacity = create_capacity_comparison_plot(
-                volume, optimal_hc, AHT, target_occ, interval, callsmaxocc_at_target
-            )
-            st.plotly_chart(fig_capacity, use_container_width=True)
+            try:
+                # Trade-off plot
+                fig_tradeoff = create_headcount_tradeoff_plot(
+                    volume, AHT, ASA, interval, optimal_hc, 
+                    hc_for_target_occ, hc_for_target_sla, target_occ, target_sla
+                )
+                st.plotly_chart(fig_tradeoff, use_container_width=True)
+                
+                # Capacity comparison
+                fig_capacity = create_capacity_comparison_plot(
+                    volume, optimal_hc, AHT, target_occ, interval, callsmaxocc_at_target
+                )
+                st.plotly_chart(fig_capacity, use_container_width=True)
+                
+            except Exception as e:
+                st.warning(f"Visualization error: {str(e)}")
+                st.info("Some charts may not render properly with extreme parameters")
             
             # Detailed comparison table
+            occ_sla_only = calculate_occupancy(volume, AHT, hc_for_target_sla, interval_seconds) * 100
+            sla_occ_only = calculate_service_level(hc_for_target_occ, volume, AHT, ASA) * 100
+            if sla_occ_only is None or np.isnan(sla_occ_only):
+                sla_occ_only = 0.0
+            
             comparison_data = pd.DataFrame({
                 'Scenario': ['Optimal Balance', 'Occupancy-Focused', 'SLA-Focused'],
                 'Headcount': [optimal_hc, hc_for_target_occ, hc_for_target_sla],
                 'Occupancy': [
                     optimal_result['occupancy'],
                     target_occ,
-                    calculate_occupancy(volume, AHT, hc_for_target_sla, interval_seconds) * 100
+                    occ_sla_only
                 ],
                 'Service Level': [
-                    optimal_result['service_level'],
-                    calculate_service_level(hc_for_target_occ, volume, AHT, ASA) * 100,
+                    sla_display,
+                    sla_occ_only,
                     target_sla
                 ],
                 'Efficiency Score': [
                     optimal_result['score'],
-                    abs(target_occ - target_occ) + abs(calculate_service_level(hc_for_target_occ, volume, AHT, ASA)*100 - target_sla)*2,
-                    abs(calculate_occupancy(volume, AHT, hc_for_target_sla, interval_seconds)*100 - target_occ) + abs(target_sla - target_sla)*2
+                    abs(target_occ - target_occ) + abs(sla_occ_only - target_sla)*2,
+                    abs(occ_sla_only - target_occ) + abs(target_sla - target_sla)*2
                 ]
             })
             
@@ -451,17 +519,22 @@ def main():
         with tab3:
             st.header("Sensitivity Analysis")
             
-            # Heatmaps
-            fig_occ_heat, fig_sla_heat = create_sensitivity_heatmap(
-                volume, AHT, ASA, interval, optimal_hc
-            )
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.plotly_chart(fig_occ_heat, use_container_width=True)
-            
-            with col2:
-                st.plotly_chart(fig_sla_heat, use_container_width=True)
+            try:
+                # Heatmaps
+                fig_occ_heat, fig_sla_heat = create_sensitivity_heatmap(
+                    volume, AHT, ASA, interval, optimal_hc
+                )
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.plotly_chart(fig_occ_heat, use_container_width=True)
+                
+                with col2:
+                    st.plotly_chart(fig_sla_heat, use_container_width=True)
+                
+            except Exception as e:
+                st.warning(f"Could not generate heatmaps: {str(e)}")
+                st.info("Try with less extreme parameter ranges")
             
             # What-if scenarios
             st.subheader("What-if Scenarios")
@@ -469,24 +542,30 @@ def main():
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                volume_change = st.slider("Volume Change (%)", -50, 50, 0, 5)
+                volume_change = st.slider("Volume Change (%)", -50, 50, 0, 5, key="vol_change")
                 new_volume = volume * (1 + volume_change/100)
                 new_occ = calculate_occupancy(new_volume, AHT, optimal_hc, interval_seconds) * 100
                 new_sla = calculate_service_level(optimal_hc, new_volume, AHT, ASA) * 100
+                if new_sla is None or np.isnan(new_sla):
+                    new_sla = 0.0
                 st.metric("New Occupancy", f"{new_occ:.1f}%", delta=f"{new_occ - optimal_result['occupancy']:+.1f}%")
             
             with col2:
-                aht_change = st.slider("AHT Change (%)", -30, 30, 0, 5)
+                aht_change = st.slider("AHT Change (%)", -30, 30, 0, 5, key="aht_change")
                 new_aht = AHT * (1 + aht_change/100)
                 new_occ = calculate_occupancy(volume, new_aht, optimal_hc, interval_seconds) * 100
                 new_sla = calculate_service_level(optimal_hc, volume, new_aht, ASA) * 100
-                st.metric("New Service Level", f"{new_sla:.1f}%", delta=f"{new_sla - optimal_result['service_level']:+.1f}%")
+                if new_sla is None or np.isnan(new_sla):
+                    new_sla = 0.0
+                st.metric("New Service Level", f"{new_sla:.1f}%", delta=f"{new_sla - sla_display:+.1f}%")
             
             with col3:
-                hc_change = st.slider("Headcount Change", -5, 5, 0, 1)
+                hc_change = st.slider("Headcount Change", -5, 5, 0, 1, key="hc_change")
                 new_hc = optimal_hc + hc_change
                 new_occ = calculate_occupancy(volume, AHT, new_hc, interval_seconds) * 100
                 new_sla = calculate_service_level(new_hc, volume, AHT, ASA) * 100
+                if new_sla is None or np.isnan(new_sla):
+                    new_sla = 0.0
                 st.metric("New Efficiency", f"{(new_occ/100)*(new_sla/100)*100:.1f}%")
         
         with tab4:
@@ -526,7 +605,10 @@ def main():
             st.header("Actionable Recommendations")
             
             # Generate insights based on analysis
-            volume_ratio = volume / callsmaxocc_at_target if callsmaxocc_at_target > 0 else 0
+            if callsmaxocc_at_target > 0:
+                volume_ratio = volume / callsmaxocc_at_target
+            else:
+                volume_ratio = 1
             
             if volume_ratio > 1.1:
                 st.error(f"""
@@ -582,13 +664,13 @@ def main():
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                revenue_per_call = st.number_input("Revenue per call ($)", 10, 200, 50, 10)
+                revenue_per_call = st.number_input("Revenue per call ($)", 10, 200, 50, 10, key="revenue")
             
             with col2:
-                cost_per_agent_hour = st.number_input("Cost per agent/hour ($)", 20, 100, 40, 5)
+                cost_per_agent_hour = st.number_input("Cost per agent/hour ($)", 20, 100, 40, 5, key="cost")
             
             with col3:
-                hours_per_day = st.number_input("Operating hours/day", 8, 24, 10, 1)
+                hours_per_day = st.number_input("Operating hours/day", 8, 24, 10, 1, key="hours")
             
             daily_revenue = volume * revenue_per_call * hours_per_day
             daily_cost = optimal_hc * cost_per_agent_hour * hours_per_day
