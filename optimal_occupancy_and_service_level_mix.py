@@ -1,4 +1,4 @@
-# streamlit_app.py
+# optimal_occupancy_and_service_level_mix.py
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -16,344 +16,209 @@ def calculate_occupancy(volume, AHT, headcount, interval_seconds):
     return (volume * AHT / 3600) / (headcount * interval_seconds / 3600)
 
 def calculate_service_level(headcount, traffic_intensity, AHT, ASA):
-    """Calculate Erlang C service level"""
+    """Calculate simplified service level"""
     if headcount <= traffic_intensity:
         return 0.0
     
-    # Simplified Erlang C approximation
-    # In production, use proper Erlang C formula
-    from math import exp
+    # Simplified approximation (for demo)
+    base_sla = min(0.99, (headcount - traffic_intensity) / headcount * 1.5)
+    adjustment = 1 - (ASA / AHT) * 0.3  # ASA impact
     
-    # Probability of waiting
-    Pw = traffic_intensity ** headcount / (np.math.factorial(headcount) * 
-          (headcount - traffic_intensity) * sum([traffic_intensity ** i / np.math.factorial(i) for i in range(headcount)]))
-    
-    # Service level
-    sla = 1 - Pw * exp(-(headcount - traffic_intensity) * ASA / AHT)
-    return max(0.0, min(1.0, sla))
-
-def calculate_callsmaxocc(headcount, AHT, target_occ, interval_seconds):
-    """Calculate maximum calls per hour at target occupancy"""
-    return (headcount * interval_seconds / AHT) * target_occ
-
-def calculate_maxcap_per_agent(AHT, interval_seconds, target_occ):
-    """Calculate maximum capacity per agent"""
-    return (interval_seconds / AHT) * target_occ
-
-def find_optimal_headcount(volume, AHT, ASA, target_sla, target_occ, interval_minutes):
-    """Find headcount that best balances occupancy and SLA targets"""
-    interval_seconds = interval_minutes * 60
-    
-    # Search for optimal headcount
-    best_score = float('inf')
-    best_result = None
-    all_results = []
-    
-    for hc in np.arange(1, 50, 0.5):
-        # Calculate occupancy and SLA
-        occ = calculate_occupancy(volume, AHT, hc, interval_seconds) * 100
-        traffic = volume * AHT / 3600
-        sla = calculate_service_level(hc, traffic, AHT, ASA) * 100
-        
-        # Calculate how far from targets
-        occ_distance = abs(occ - target_occ*100)
-        sla_distance = abs(sla - target_sla)
-        
-        # Combined score (weighted)
-        score = occ_distance + sla_distance * 2  # SLA is more important
-        
-        all_results.append({
-            'headcount': hc,
-            'occupancy': occ,
-            'service_level': sla,
-            'score': score
-        })
-        
-        if score < best_score:
-            best_score = score
-            best_result = all_results[-1]
-    
-    return best_result, all_results
+    return max(0.0, min(1.0, base_sla * adjustment))
 
 # ========================
-# STREAMLIT UI FUNCTIONS
+# STREAMLIT APP
 # ========================
 
-def create_optimization_widget():
-    """Create interactive optimization widget using Streamlit"""
+def main():
+    st.title("📞 Call Center Occupancy & Service Level Optimizer")
     
-    st.header("🔧 Dynamic Optimization Tool")
+    st.markdown("""
+    Find the optimal balance between agent occupancy (efficiency) and service level (customer wait time).
+    """)
     
-    # Create two columns for inputs
+    # Input parameters in columns
     col1, col2 = st.columns(2)
     
     with col1:
         volume = st.slider(
             "Call Volume (calls/hour)",
-            min_value=1.0,
-            max_value=200.0,
-            value=40.0,
-            step=1.0,
-            help="Number of calls arriving per hour"
+            min_value=1,
+            max_value=200,
+            value=40,
+            step=1
         )
         
         AHT = st.slider(
             "Average Handle Time (seconds)",
-            min_value=60.0,
-            max_value=1200.0,
-            value=390.0,
-            step=10.0,
-            help="Average time to handle a call"
+            min_value=60,
+            max_value=1200,
+            value=390,
+            step=10
         )
         
         ASA = st.slider(
             "ASA Target (seconds)",
-            min_value=5.0,
-            max_value=180.0,
-            value=30.0,
-            step=5.0,
-            help="Acceptable wait time for service level calculation"
+            min_value=5,
+            max_value=180,
+            value=30,
+            step=5
         )
     
     with col2:
         target_sla = st.slider(
             "Target Service Level (%)",
-            min_value=50.0,
-            max_value=100.0,
-            value=90.0,
-            step=1.0,
-            help="Desired service level percentage"
+            min_value=50,
+            max_value=100,
+            value=90,
+            step=1
         )
         
         target_occ = st.slider(
-            "Target Occupancy",
-            min_value=0.1,
-            max_value=1.0,
-            value=0.8,
-            step=0.01,
-            format="%.0f%%",
-            help="Desired occupancy rate"
+            "Target Occupancy (%)",
+            min_value=10,
+            max_value=100,
+            value=80,
+            step=1
         )
         
         interval = st.selectbox(
             "Interval (minutes)",
             options=[15, 30, 60],
-            index=2,
-            help="Time period for calculations"
+            index=2
         )
     
-    # Run optimization button
-    if st.button("🚀 Run Optimization", type="primary"):
-        return run_optimization_analysis(volume, AHT, ASA, target_sla, target_occ, interval)
+    # Convert percentage to decimal
+    target_occ_decimal = target_occ / 100
+    interval_seconds = interval * 60
     
-    return None
-
-def run_optimization_analysis(volume, AHT, ASA, target_sla, target_occ, interval_minutes):
-    """Run the optimization analysis and display results"""
-    
-    interval_seconds = interval_minutes * 60
-    
-    # Find optimal headcount
-    optimal_result, all_results = find_optimal_headcount(
-        volume, AHT, ASA, target_sla, target_occ, interval_minutes
-    )
-    
-    # Calculate additional metrics
-    callsmaxocc_at_target = calculate_callsmaxocc(
-        optimal_result['headcount'], AHT, target_occ, interval_seconds
-    )
-    
-    callsmaxocc_at_result = calculate_callsmaxocc(
-        optimal_result['headcount'], AHT, optimal_result['occupancy']/100, interval_seconds
-    )
-    
-    maxcap_per_agent = calculate_maxcap_per_agent(AHT, interval_seconds, target_occ)
-    
-    # Calculate headcount needed for target occupancy only
-    hc_for_target_occ = (volume * AHT / 3600) / (target_occ * interval_seconds / 3600)
-    
-    # Display results
-    st.success("✅ Optimization Complete!")
-    
-    # Key Metrics
-    st.subheader("📊 Optimization Results")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Optimal Headcount", f"{optimal_result['headcount']:.1f}")
-    
-    with col2:
-        st.metric("Resulting Occupancy", f"{optimal_result['occupancy']:.1f}%")
-    
-    with col3:
-        st.metric("Resulting Service Level", f"{optimal_result['service_level']:.1f}%")
-    
-    with col4:
-        st.metric("Team Capacity", f"{maxcap_per_agent * optimal_result['headcount']:.1f} calls/hour")
-    
-    # Detailed Analysis
-    st.subheader("📈 Detailed Analysis")
-    
-    # Create visualizations
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-    
-    # Plot 1: Headcount vs Performance
-    hc_values = np.linspace(1, max(20, optimal_result['headcount'] * 1.5), 100)
-    occ_values = []
-    sla_values = []
-    
-    for hc in hc_values:
-        occ = calculate_occupancy(volume, AHT, hc, interval_seconds) * 100
-        occ_values.append(occ)
-        
-        traffic = volume * AHT / 3600
-        sla = calculate_service_level(hc, traffic, AHT, ASA) * 100
-        sla_values.append(sla)
-    
-    ax1.plot(hc_values, occ_values, 'b-', linewidth=2, label='Occupancy')
-    ax1.plot(hc_values, sla_values, 'g-', linewidth=2, label='Service Level')
-    
-    # Mark key points
-    ax1.axvline(x=optimal_result['headcount'], color='red', linestyle='--',
-               alpha=0.7, label=f'Optimal HC ({optimal_result["headcount"]:.1f})')
-    ax1.axhline(y=target_occ*100, color='blue', alpha=0.3, linestyle='--')
-    ax1.axhline(y=target_sla, color='green', alpha=0.3, linestyle='--')
-    
-    ax1.set_xlabel('Headcount')
-    ax1.set_ylabel('Performance (%)')
-    ax1.set_title('Headcount Optimization: Occupancy vs SLA')
-    ax1.grid(True, alpha=0.3)
-    ax1.legend()
-    ax1.set_ylim([0, 105])
-    
-    # Plot 2: Capacity comparison
-    capacity_metrics = ['Current Volume', f'Max at {target_occ*100:.0f}% Occ', 'Team Capacity']
-    capacity_values = [volume, callsmaxocc_at_target, maxcap_per_agent * optimal_result['headcount']]
-    colors = ['blue', 'red', 'green']
-    
-    bars = ax2.bar(capacity_metrics, capacity_values, color=colors, alpha=0.7)
-    ax2.set_ylabel('Calls per Hour')
-    ax2.set_title('Capacity Comparison')
-    ax2.grid(True, alpha=0.3, axis='y')
-    
-    # Add value labels
-    for bar, val in zip(bars, capacity_values):
-        height = bar.get_height()
-        ax2.text(bar.get_x() + bar.get_width()/2., height + max(capacity_values)*0.05,
-                f'{val:.1f}', ha='center', va='bottom', fontweight='bold')
-    
-    st.pyplot(fig)
-    
-    # Insights
-    st.subheader("💡 Key Insights")
-    
-    if volume > callsmaxocc_at_target:
-        st.warning(f"""
-        **Occupancy Warning:** You have MORE volume ({volume:.1f}) than needed for {target_occ*100:.0f}% occupancy ({callsmaxocc_at_target:.1f}).
-        
-        **Recommendation:** To maintain occupancy target, consider:
-        - Increasing headcount to {hc_for_target_occ:.1f} agents
-        - Reducing AHT through process improvements
-        - Implementing call deflection strategies
-        """)
-    else:
-        st.info(f"""
-        **Capacity Available:** You have LESS volume ({volume:.1f}) than needed for {target_occ*100:.0f}% occupancy ({callsmaxocc_at_target:.1f}).
-        
-        **Opportunity:** You can handle additional volume while maintaining targets.
-        """)
-    
-    # Summary Table
-    st.subheader("📋 Summary Table")
-    
-    summary_data = pd.DataFrame({
-        'Metric': [
-            'Optimal Headcount',
-            'Resulting Occupancy',
-            'Resulting Service Level',
-            f'Max Calls at {target_occ*100:.0f}% Occ',
-            'Volume to Max Capacity Ratio',
-            'Capacity per Agent'
-        ],
-        'Value': [
-            f"{optimal_result['headcount']:.1f} agents",
-            f"{optimal_result['occupancy']:.1f}%",
-            f"{optimal_result['service_level']:.1f}%",
-            f"{callsmaxocc_at_target:.1f} calls/hour",
-            f"{volume/callsmaxocc_at_target:.2f}x",
-            f"{maxcap_per_agent:.2f} calls/hour"
-        ],
-        'Note': [
-            'Balances both occupancy and SLA',
-            f'Target was {target_occ*100:.0f}%',
-            f'Target was {target_sla}%',
-            'Maximum calls for target occupancy',
-            'How close to capacity',
-            'At target occupancy'
-        ]
-    })
-    
-    st.dataframe(summary_data, use_container_width=True)
-    
-    return optimal_result
-
-# ========================
-# MAIN APP
-# ========================
-
-def main():
-    """Main Streamlit app"""
-    st.title("📞 Call Center Occupancy & Service Level Optimizer")
-    
-    st.markdown("""
-    This tool helps you find the optimal balance between:
-    - **Occupancy:** Agent utilization (higher = more efficient)
-    - **Service Level:** Customer wait time (higher = better service)
-    
-    Adjust the parameters in the sidebar to simulate different scenarios.
-    """)
-    
-    # Sidebar for additional controls
-    with st.sidebar:
-        st.header("⚙️ Configuration")
-        
-        st.subheader("About")
-        st.info("""
-        This tool uses Erlang C calculations to model call center performance.
-        
-        **Key Metrics:**
-        - **Volume:** Calls per hour
-        - **AHT:** Average Handle Time
-        - **ASA:** Acceptable Service Time
-        - **Occupancy:** Agent busy time
-        - **Service Level:** % answered within ASA
-        """)
-        
-        if st.button("🔄 Reset All", type="secondary"):
-            st.rerun()
-    
-    # Run the optimization widget
-    results = create_optimization_widget()
-    
-    if results:
-        # Option to download results
-        st.divider()
-        st.subheader("📥 Export Results")
-        
-        if st.button("Download Results as CSV"):
-            results_df = pd.DataFrame([results])
+    # Calculate for different headcounts
+    if st.button("🚀 Run Simulation", type="primary"):
+        with st.spinner("Calculating optimal headcount..."):
+            
+            # Find optimal headcount
+            best_hc = None
+            best_score = float('inf')
+            results = []
+            
+            for hc in range(1, 30):
+                occ = calculate_occupancy(volume, AHT, hc, interval_seconds) * 100
+                traffic = volume * AHT / 3600
+                sla = calculate_service_level(hc, traffic, AHT, ASA) * 100
+                
+                # Score based on distance from targets
+                occ_diff = abs(occ - target_occ)
+                sla_diff = abs(sla - target_sla)
+                score = occ_diff + sla_diff * 2
+                
+                results.append({
+                    'Headcount': hc,
+                    'Occupancy (%)': round(occ, 1),
+                    'Service Level (%)': round(sla, 1),
+                    'Score': round(score, 1)
+                })
+                
+                if score < best_score:
+                    best_score = score
+                    best_hc = hc
+            
+            # Display optimal headcount
+            st.success(f"✅ **Optimal Headcount: {best_hc} agents**")
+            
+            # Show results table
+            st.subheader("📊 Simulation Results")
+            results_df = pd.DataFrame(results)
+            st.dataframe(results_df, use_container_width=True)
+            
+            # Performance Metrics
+            st.subheader("📈 Performance at Optimal Headcount")
+            
+            optimal_result = results_df[results_df['Headcount'] == best_hc].iloc[0]
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Headcount", best_hc)
+            
+            with col2:
+                occ_value = optimal_result['Occupancy (%)']
+                st.metric("Occupancy", f"{occ_value:.1f}%", 
+                         delta=f"{occ_value - target_occ:.1f}% vs target")
+            
+            with col3:
+                sla_value = optimal_result['Service Level (%)']
+                st.metric("Service Level", f"{sla_value:.1f}%",
+                         delta=f"{sla_value - target_sla:.1f}% vs target")
+            
+            with col4:
+                capacity = (best_hc * interval_seconds / AHT) * (target_occ_decimal)
+                st.metric("Capacity", f"{capacity:.1f} calls/hour")
+            
+            # Visualizations using Streamlit native charts
+            st.subheader("📉 Performance Trends")
+            
+            # Create data for charts
+            chart_data = pd.DataFrame({
+                'Headcount': results_df['Headcount'],
+                'Occupancy': results_df['Occupancy (%)'],
+                'Service Level': results_df['Service Level (%)']
+            }).set_index('Headcount')
+            
+            # Line chart
+            st.line_chart(chart_data)
+            
+            # Highlight optimal point
+            st.info(f"""
+            **Analysis at {best_hc} agents:**
+            - **Occupancy:** {optimal_result['Occupancy (%)']:.1f}% (Target: {target_occ}%)
+            - **Service Level:** {optimal_result['Service Level (%)']:.1f}% (Target: {target_sla}%)
+            - **Gap Score:** {optimal_result['Score']:.1f} (lower is better)
+            """)
+            
+            # Capacity Analysis
+            st.subheader("⚙️ Capacity Analysis")
+            
+            # Calculate capacity metrics
+            max_calls_at_target = (best_hc * interval_seconds / AHT) * (target_occ_decimal)
+            volume_ratio = volume / max_calls_at_target if max_calls_at_target > 0 else 0
+            
+            capacity_data = pd.DataFrame({
+                'Metric': ['Current Volume', 'Max at Target Occupancy', 'Utilization'],
+                'Value': [volume, round(max_calls_at_target, 1), f"{volume_ratio*100:.1f}%"]
+            })
+            
+            st.table(capacity_data)
+            
+            # Insights
+            st.subheader("💡 Recommendations")
+            
+            if volume > max_calls_at_target:
+                st.warning(f"""
+                **High Volume Alert:** Current volume ({volume}) exceeds capacity at target occupancy ({max_calls_at_target:.1f}).
+                
+                **Consider:**
+                1. Increase headcount beyond {best_hc} agents
+                2. Reduce AHT from {AHT} seconds
+                3. Implement call deflection strategies
+                """)
+            else:
+                st.success(f"""
+                **Capacity Available:** You can handle {max_calls_at_target - volume:.1f} more calls/hour 
+                while maintaining {target_occ}% occupancy with {best_hc} agents.
+                """)
+            
+            # Export option
+            st.subheader("📥 Export Results")
+            
+            # Convert to CSV
             csv = results_df.to_csv(index=False)
             st.download_button(
-                label="Click to Download",
+                label="Download Results as CSV",
                 data=csv,
-                file_name="optimization_results.csv",
+                file_name="occupancy_simulation.csv",
                 mime="text/csv"
             )
 
-# ========================
-# ENTRY POINT
-# ========================
-
+# Run the app
 if __name__ == "__main__":
     main()
