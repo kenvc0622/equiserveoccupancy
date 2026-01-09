@@ -3,21 +3,12 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+st.line_chart(data)
+st.area_chart(data)
+st.bar_chart(data)
 
-# Simple line plot
-fig, ax = plt.subplots()
-ax.plot(x_data, y_data)
-ax.set_xlabel('Occupancy Rate')
-ax.set_ylabel('Service Level')
-ax.set_title('Tradeoff Analysis')
-st.pyplot(fig)
 
-# Or multiple subplots
-fig, axes = plt.subplots(2, 2, figsize=(10, 8))
-axes[0,0].plot(data['occupancy'], data['revenue'])
-# ... more plots
-st.pyplot(fig)
+
 
 """# Final Occupancy Simulation
 
