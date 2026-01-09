@@ -1,4 +1,9 @@
 
+# streamlit_app.py
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
 
 """# Final Occupancy Simulation
 
@@ -299,3 +304,57 @@ if __name__ == "__main__":
     # Create and display optimization widget
     optimization_tool = create_optimization_widget()
     display(optimization_tool)
+def load_and_preprocess_data():
+    """From your Colab data loading cell"""
+    # Replace Colab paths
+    # df = pd.read_csv('/content/data.csv')  # ❌ Colab path
+    df = pd.read_csv('data.csv')  # ✅ Relative path
+    return df
+
+def calculate_optimal_mix(occupancy, service_level):
+    """From your Colab calculation cell"""
+    # Your calculation logic
+    return optimal_values
+
+def visualize_tradeoff(data):
+    """From your Colab visualization cell"""
+    fig = go.Figure()
+    # Your plotting code
+    return fig
+
+# === MAIN APP FUNCTION ===
+def create_interactive_tradeoff():
+    """Main UI - combine all pieces"""
+    st.title("Occupancy Optimization Dashboard")
+    
+    # Load data
+    data = load_and_preprocess_data()
+    
+    # User inputs
+    col1, col2 = st.columns(2)
+    with col1:
+        occupancy = st.slider("Target Occupancy", 0.65, 0.95, 0.85, 0.01)
+    with col2:
+        service_level = st.slider("Service Level", 0.80, 0.99, 0.95, 0.01)
+    
+    # Calculate
+    results = calculate_optimal_mix(occupancy, service_level)
+    
+    # Visualize
+    fig = visualize_tradeoff(results)
+    st.plotly_chart(fig, use_container_width=True)
+    
+    return results
+
+# === RUN THE APP ===
+if __name__ == "__main__":
+    # This is the entry point
+    results = create_interactive_tradeoff()
+    
+    # Optional debug
+    with st.expander("Raw Output"):
+        st.write(results)
+
+
+
+
