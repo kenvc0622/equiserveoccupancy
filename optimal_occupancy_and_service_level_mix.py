@@ -3,9 +3,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-st.line_chart(data)
-st.area_chart(data)
-st.bar_chart(data)
+
 
 
 
