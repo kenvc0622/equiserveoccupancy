@@ -279,6 +279,13 @@ def create_optimization_widget():
 
     return widgets.VBox([controls_box, opt_interactive])
 
+# Add this before the error line
+if 'create_interactive_tradeoff' not in globals():
+    st.error("Function 'create_interactive_tradeoff' is not defined!")
+    # Define it here or show instructions
+    def create_interactive_tradeoff():
+        return st.write("Placeholder function - define your actual function above")
+
 # Update the main execution section
 if __name__ == "__main__":
     print("="*80)
