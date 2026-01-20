@@ -5,6 +5,14 @@ from scipy.special import factorial
 from scipy.optimize import fsolve
 import pandas as pd
 
+# Set page configuration
+st.set_page_config(
+    page_title="Call Center Occupancy Analysis",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 # ========================
 # CORE CALCULATION FUNCTIONS (same as original)
 # ========================
