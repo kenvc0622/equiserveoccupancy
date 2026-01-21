@@ -759,26 +759,26 @@ def main():
                             
             st.caption("Note: Download files for detailed analysis and reporting")
                             
-        except Exception as e:
-            st.error(f"Error processing file: {str(e)}")
-            st.info("Please ensure your CSV file is properly formatted.")
-        else:
+except Exception as e:
+    st.error(f"Error processing file: {str(e)}")
+    st.info("Please ensure your CSV file is properly formatted.")
+else:
             # Show upload instructions
-            st.info("""
-            ### 📋 Expected CSV Format:
+    st.info("""
+    ### 📋 Expected CSV Format:
             
-            Create a CSV file with these columns:
+    Create a CSV file with these columns:
             
-            ```
-            Hour,Forecasted_Calls,AHT_Seconds,Shrinkage_Pct
-            8,45,390,15
-            9,67,390,15
-            10,89,390,15
-            11,102,390,15
-            12,95,400,20
-            13,87,410,15
-            14,110,380,10
-            15,98,390,15
+    ```
+    Hour,Forecasted_Calls,AHT_Seconds,Shrinkage_Pct
+    8,45,390,15
+    9,67,390,15
+    10,89,390,15
+    11,102,390,15
+    12,95,400,20
+    13,87,410,15
+    14,110,380,10
+    15,98,390,15
             16,76,395,15
             17,54,400,20
             ```
