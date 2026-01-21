@@ -338,7 +338,181 @@ def main():
         st.header("📐 MATHEMATICAL ANALYSIS")
         st.info(f"**Analysis Parameters:** SLA Target = {st.session_state.global_target_sla}%, Occupancy Target = {st.session_state.global_target_occupancy}%")
         
-        # ... [existing mathematical analysis code, updated with global targets] ...
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            math_volume = st.slider("Call Volume:", 1, 500, 37, 1, key="math_volume")
+            math_AHT = st.slider("Average Handle Time (s):", 60, 1200, 390, 10, key="math_AHT")
+            math_ASA = st.slider("ASA Target (s):", 5, 300, 30, 5, key="math_ASA")
+        
+        with col2:
+            math_headcount_start = st.slider("Starting Headcount:", 0, 10, 0, 1, key="math_start_hc")
+            math_headcount_end = st.slider("Ending Headcount:", 10, 50, 10, 1, key="math_end_hc")
+            math_interval = st.selectbox("Interval (minutes):", [15, 30, 60], index=2, key="math_interval")
+        
+        if st.button("🧮 Generate Mathematical Analysis", type="primary", key="gen_math"):
+            with st.spinner("Calculating Erlang C probabilities..."):
+                # Calculate traffic intensity
+                traffic_intensity = (math_volume * math_AHT) / 3600
+                
+                # Generate analysis table
+                analysis_data = []
+                headcount_range = range(math_headcount_start, math_headcount_end + 1)
+                
+                for N in headcount_range:
+                    if N == 0:
+                        # Special case for N=0
+                        p_wait = 1.0
+                        sla = 0.0
+                        occupancy = 0.0
+                        utilization = 0.0
+                    else:
+                        # Calculate metrics
+                        p_wait = erlang_c_probability_wait(N, traffic_intensity) * 100
+                        sla = calculate_service_level(N, traffic_intensity, math_AHT, math_ASA) * 100
+                        occupancy = calculate_occupancy(math_volume, math_AHT, N, math_interval*60) * 100
+                        utilization = (traffic_intensity / N) * 100 if N > 0 else 0
+                    
+                    analysis_data.append({
+                        'Headcount': N,
+                        'Traffic Intensity (Erlangs)': f"{traffic_intensity:.3f}",
+                        'P(Wait) %': f"{p_wait:.2f}%",
+                        'Service Level %': f"{sla:.2f}%",
+                        'Occupancy %': f"{occupancy:.2f}%",
+                        'Utilization Ratio': f"{utilization:.2f}%"
+                    })
+                
+                # Create DataFrame
+                analysis_df = pd.DataFrame(analysis_data)
+                
+                # Display results
+                st.subheader("Erlang C Probability Analysis")
+                st.dataframe(analysis_df, use_container_width=True)
+                
+                # Key mathematical insights
+                st.subheader("Key Mathematical Insights")
+                
+                col_math1, col_math2 = st.columns(2)
+                
+                with col_math1:
+                    st.markdown("""
+                    ### Erlang C Formula:
+                    
+                    \[P(\text{wait}) = \frac{(A^N / N!) \times (N/(N-A))}{\sum_{i=0}^{N-1}(A^i / i!) + (A^N / N!) \times (N/(N-A))}\]
+                    
+                    Where:  
+                    - \( A \) = Traffic Intensity = {:.3f} Erlangs  
+                    - \( N \) = Number of agents
+                    
+                    ### Service Level Formula:
+                    
+                    \[SLA = 1 - P(\text{wait}) \times \exp(-(N-A) \times T / AHT)\]
+                    
+                    Where:  
+                    - \( T \) = ASA Target = {} seconds  
+                    - \( AHT \) = {} seconds  
+                    - \( N-A \) = Agent surplus
+                    """.format(traffic_intensity, math_ASA, math_AHT))
+                
+                with col_math2:
+                    st.markdown("""
+                    ### Key Relationships:
+                    
+                    1. **Traffic Intensity (A)**:  
+                       \( A = \frac{\text{Volume} \times AHT}{3600} \)
+                    
+                    2. **Occupancy**:  
+                       \( \text{Occ} = \frac{\text{Volume} \times AHT}{N \times \text{Interval}} \)
+                    
+                    3. **Utilization Ratio**:  
+                       \( U = \frac{A}{N} \times 100\% \)
+                    
+                    4. **Agent Requirements**:  
+                       Minimum agents needed: \( N > A \)
+                    """)
+                
+                # Create visualizations
+                st.subheader("Mathematical Relationships")
+                
+                # Create figure with subplots
+                fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+                
+                # Prepare data for plotting
+                N_values = list(headcount_range)
+                p_wait_values = [float(d['P(Wait) %'].strip('%')) for d in analysis_data]
+                sla_values = [float(d['Service Level %'].strip('%')) for d in analysis_data]
+                occ_values = [float(d['Occupancy %'].strip('%')) for d in analysis_data]
+                
+                # Plot 1: Probability of Wait vs Headcount
+                axes[0, 0].plot(N_values, p_wait_values, 'b-', linewidth=2.5, marker='o')
+                axes[0, 0].set_xlabel('Headcount', fontsize=11, fontweight='bold')
+                axes[0, 0].set_ylabel('P(Wait) %', fontsize=11, fontweight='bold')
+                axes[0, 0].set_title('Probability of Waiting vs Headcount', fontsize=12, fontweight='bold')
+                axes[0, 0].grid(True, alpha=0.3)
+                axes[0, 0].fill_between(N_values, p_wait_values, 0, alpha=0.2, color='blue')
+                
+                # Plot 2: Service Level vs Headcount
+                axes[0, 1].plot(N_values, sla_values, 'g-', linewidth=2.5, marker='s')
+                axes[0, 1].axhline(y=st.session_state.global_target_sla, color='darkgreen', linestyle=':', linewidth=2)
+                axes[0, 1].set_xlabel('Headcount', fontsize=11, fontweight='bold')
+                axes[0, 1].set_ylabel('Service Level %', fontsize=11, fontweight='bold')
+                axes[0, 1].set_title('Service Level vs Headcount', fontsize=12, fontweight='bold')
+                axes[0, 1].grid(True, alpha=0.3)
+                axes[0, 1].fill_between(N_values, sla_values, st.session_state.global_target_sla, 
+                                       where=np.array(sla_values) >= st.session_state.global_target_sla, 
+                                       alpha=0.2, color='lightgreen')
+                
+                # Plot 3: Occupancy vs Headcount
+                axes[1, 0].plot(N_values, occ_values, 'r-', linewidth=2.5, marker='^')
+                axes[1, 0].axhline(y=st.session_state.global_target_occupancy, color='orange', linestyle=':', linewidth=2)
+                axes[1, 0].set_xlabel('Headcount', fontsize=11, fontweight='bold')
+                axes[1, 0].set_ylabel('Occupancy %', fontsize=11, fontweight='bold')
+                axes[1, 0].set_title('Occupancy vs Headcount', fontsize=12, fontweight='bold')
+                axes[1, 0].grid(True, alpha=0.3)
+                axes[1, 0].fill_between(N_values, occ_values, st.session_state.global_target_occupancy, 
+                                       where=np.array(occ_values) >= st.session_state.global_target_occupancy, 
+                                       alpha=0.2, color='lightcoral')
+                
+                # Plot 4: Combined View
+                axes[1, 1].plot(N_values, p_wait_values, 'b-', linewidth=2, label='P(Wait)')
+                axes[1, 1].plot(N_values, sla_values, 'g-', linewidth=2, label='SLA')
+                axes[1, 1].plot(N_values, occ_values, 'r-', linewidth=2, label='Occupancy')
+                axes[1, 1].set_xlabel('Headcount', fontsize=11, fontweight='bold')
+                axes[1, 1].set_ylabel('Percentage', fontsize=11, fontweight='bold')
+                axes[1, 1].set_title('Combined View', fontsize=12, fontweight='bold')
+                axes[1, 1].grid(True, alpha=0.3)
+                axes[1, 1].legend(loc='best')
+                
+                plt.tight_layout()
+                st.pyplot(fig)
+                
+                # Performance thresholds
+                st.subheader("Performance Thresholds")
+                
+                # Find key thresholds
+                threshold_90_sla = next((N for N, sla in zip(N_values, sla_values) if sla >= 90), None)
+                threshold_target_sla = next((N for N, sla in zip(N_values, sla_values) if sla >= st.session_state.global_target_sla), None)
+                threshold_target_occ = next((N for N, occ in zip(N_values, occ_values) if occ >= st.session_state.global_target_occupancy), None)
+                
+                col_thresh1, col_thresh2, col_thresh3 = st.columns(3)
+                
+                with col_thresh1:
+                    if threshold_90_sla is not None:
+                        st.metric("Agents for 90% SLA", f"{threshold_90_sla}")
+                    else:
+                        st.metric("Agents for 90% SLA", "Not achieved")
+                
+                with col_thresh2:
+                    if threshold_target_sla is not None:
+                        st.metric(f"Agents for {st.session_state.global_target_sla}% SLA", f"{threshold_target_sla}")
+                    else:
+                        st.metric(f"Agents for {st.session_state.global_target_sla}% SLA", "Not achieved")
+                
+                with col_thresh3:
+                    if threshold_target_occ is not None:
+                        st.metric(f"Agents for {st.session_state.global_target_occupancy}% Occupancy", f"{threshold_target_occ}")
+                    else:
+                        st.metric(f"Agents for {st.session_state.global_target_occupancy}% Occupancy", "Not achieved")
     
     # ========================
     # TAB 4: RESULTS DASHBOARD
