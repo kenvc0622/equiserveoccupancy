@@ -688,14 +688,14 @@ def main():
                                 # Display with recommendations
                 col1, col2 = st.columns([2, 1])
                                 
-                                with col1:
-                                    st.dataframe(
-                                        precarious_df.style.applymap(
-                                            lambda x: 'background-color: #f8d7da; color: #721c24; font-weight: bold;' 
-                                            if x == 'Severe' else 'background-color: #fff3cd; color: #856404;',
-                                            subset=['Risk_Level']
-                                        ),
-                                        use_container_width=True
+                with col1:
+                    st.dataframe(
+                        precarious_df.style.applymap(
+                            lambda x: 'background-color: #f8d7da; color: #721c24; font-weight: bold;' 
+                            if x == 'Severe' else 'background-color: #fff3cd; color: #856404;',
+                            subset=['Risk_Level']
+                        ),
+                        use_container_width=True
                                     )
                                 
                                 with col2:
