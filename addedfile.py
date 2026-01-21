@@ -642,8 +642,8 @@ def main():
             fig.update_yaxes(title_text="SLA (%)", row=2, col=1)
                             
                             # Chart 4: Risk Heatmap
-                            risk_colors = {'Low': 0, 'Medium': 1, 'High': 2, 'Severe': 3}
-                            risk_numeric = [risk_colors[r] for r in results_df['Risk_Level']]
+            risk_colors = {'Low': 0, 'Medium': 1, 'High': 2, 'Severe': 3}
+            risk_numeric = [risk_colors[r] for r in results_df['Risk_Level']]
                             
                             fig.add_trace(
                                 go.Heatmap(
