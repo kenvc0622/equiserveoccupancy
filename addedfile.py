@@ -679,14 +679,14 @@ def main():
             # END MATPLOTLIB EDITS ----
                             
                             # PRECARIOUS HOURS RECOMMENDATION PANEL
-                            if precarious_hours:
-                                st.subheader("⚠️ Precarious Hours - Action Required")
+            if precarious_hours:
+                st.subheader("⚠️ Precarious Hours - Action Required")
                                 
                                 # Create DataFrame for precarious hours
-                                precarious_df = pd.DataFrame(precarious_hours)
+                precarious_df = pd.DataFrame(precarious_hours)
                                 
                                 # Display with recommendations
-                                col1, col2 = st.columns([2, 1])
+                col1, col2 = st.columns([2, 1])
                                 
                                 with col1:
                                     st.dataframe(
