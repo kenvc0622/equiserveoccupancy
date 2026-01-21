@@ -574,7 +574,7 @@ def main():
 
             except Exception as e: 
                 st.error(f"Error in analysis: {e}")  
-
+try:
                             # ---- START MATPLOTLIB EDITS -------                            
                             # ========================
                             # CORRECTED PLOTLY CODE FOR ENHANCED VISUALIZATIONS
@@ -759,9 +759,9 @@ def main():
                             
             st.caption("Note: Download files for detailed analysis and reporting")
                             
-#except Exception as e:
-#    st.error(f"Error processing file: {str(e)}")
-#    st.info("Please ensure your CSV file is properly formatted.")
+except Exception as e:
+    st.error(f"Error processing file: {str(e)}")
+    st.info("Please ensure your CSV file is properly formatted.")
 else:
             # Show upload instructions
     st.info("""
