@@ -101,7 +101,7 @@ def optimize_headcount_for_sla(volume, AHT, target_sla_percent, ASA_target, inte
 # ========================
 
 def main():
-    st.title("📞 Call Center Occupancy Analysis Tool")
+    st.title("📞 Equiserve Call Center Occupancy Analysis Tool")
     st.markdown("""
     This tool helps analyze and optimize the trade-off between agent occupancy and service level (SLA) 
     in call center operations using Erlang C calculations.
