@@ -1173,6 +1173,77 @@ def main():
             
             [Download Sample CSV](https://example.com/sample.csv)
             """)
+### 1-21-2026
+# After the export section in the Hour-by-Hour Staffing tab:
+
+# ========================
+# SIMPLE SCENARIO MATRIX EXPORT
+# ========================
+
+st.subheader("🧮 Per-Hour Scenario Matrix")
+
+# Define scenario range
+min_hc = max(1, int(results_df['Required_HC'].min()) - 2)
+max_hc = int(results_df['Prop_Sched_HC'].max()) + 3
+
+# Create scenario matrix
+scenario_data = []
+
+for _, row in results_df.iterrows():
+    hour_row = {
+        'Hour': row['Hour'],
+        'Forecasted_Calls': row['Forecasted_Calls'],
+        'AHT_Seconds': row['AHT_Seconds'],
+        'Required_HC': row['Required_HC'],
+        'Prop_Sched_HC': row['Prop_Sched_HC'],
+        'Occupancy_Pct': row['Occupancy_Pct'],
+        'SLA_Pct': row['SLA_Pct'],
+        'Risk_Level': row['Risk_Level']
+    }
+    
+    # Add ratios for each headcount in range
+    for hc in range(min_hc, max_hc + 1):
+        # Calculate metrics
+        occupancy = calculate_occupancy(
+            row['Forecasted_Calls'],
+            row['AHT_Seconds'],
+            hc,
+            3600
+        ) * 100
+        
+        traffic_intensity = (row['Forecasted_Calls'] * row['AHT_Seconds'] / 3600)
+        sla = calculate_service_level(
+            hc,
+            traffic_intensity,
+            row['AHT_Seconds'],
+            hbh_asa
+        ) * 100
+        
+        # Format as Occupancy:SLA
+        hour_row[f'HC_{hc}'] = f"{int(occupancy)}:{int(sla)}"
+    
+    scenario_data.append(hour_row)
+
+scenario_df = pd.DataFrame(scenario_data)
+
+# Display preview
+st.write(f"**Preview (showing HC {min_hc} to {min(min_hc+5, max_hc)}):**")
+preview_cols = ['Hour', 'Required_HC', 'Prop_Sched_HC', 'Occupancy_Pct', 'SLA_Pct'] + \
+               [f'HC_{hc}' for hc in range(min_hc, min(min_hc+6, max_hc+1))]
+st.dataframe(scenario_df[preview_cols].head(), use_container_width=True)
+
+# Export option
+st.markdown("---")
+st.write("**Download Scenario Matrix:**")
+
+csv_scenario = scenario_df.to_csv(index=False)
+b64_scenario = base64.b64encode(csv_scenario.encode()).decode()
+href_scenario = f'<a href="data:file/csv;base64,{b64_scenario}" download="per_hour_scenarios.csv" class="button">📥 Download Per-Hour Scenario Matrix (HC {min_hc}-{max_hc})</a>'
+st.markdown(href_scenario, unsafe_allow_html=True)
+
+st.caption(f"Contains Occupancy:SLA ratios for headcounts {min_hc} to {max_hc} for each hour")
+
+### 1-21-2026
     
     # ========================
     # TAB 6: TERMINOLOGY GUIDE (NEW)
