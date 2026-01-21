@@ -398,21 +398,21 @@ def main():
                     st.markdown(f"""
                     ### Erlang C Formula:
                     
-                    \[P(\text{{wait}}) = \frac{{(A^N / N!) \times (N/(N-A))}}{{\sum_{{i=0}}^{{N-1}}(A^i / i!) + (A^N / N!) \times (N/(N-A))}}\]
+                    $$P(\\text{{wait}}) = \\frac{{(A^N / N!) \\times (N/(N-A))}}{{\\sum_{{i=0}}^{{N-1}}(A^i / i!) + (A^N / N!) \\times (N/(N-A))}}$$
                     
                     Where:  
-                    - \( A \) = Traffic Intensity = {traffic_intensity:.3f} Erlangs  
-                    - \( N \) = Number of agents
+                    - $A$ = Traffic Intensity = {traffic_intensity:.3f} Erlangs  
+                    - $N$ = Number of agents
                     
                     ### Service Level Formula:
                     
-                    \[SLA = 1 - P(\text{{wait}}) \times \exp(-(N-A) \times T / AHT)\]
+                    $$SLA = 1 - P(\\text{{wait}}) \\times \\exp(-(N-A) \\times T / AHT)$$
                     
                     Where:  
-                    - \( T \) = ASA Target = {math_ASA} seconds  
-                    - \( AHT \) = {math_AHT} seconds  
-                    - \( N-A \) = Agent surplus
-                    """)    
+                    - $T$ = ASA Target = {math_ASA} seconds  
+                    - $AHT$ = {math_AHT} seconds  
+                    - $N-A$ = Agent surplus
+                    """)
                 
                 with col_math2:
                     st.markdown("""
