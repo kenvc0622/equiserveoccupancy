@@ -572,6 +572,9 @@ def main():
                                 st.metric("Risk Hours", f"{risk_hours}/{total_hours}")
                                 st.caption(f"{risk_hours/total_hours*100:.1f}% of hours")
 
+            except Exception as e:  
+                st.error(f"Error in analysis: {e}")  
+
 # ---- START MATPLOTLIB EDITS -------                            
 # ========================
 # CORRECTED PLOTLY CODE FOR ENHANCED VISUALIZATIONS
