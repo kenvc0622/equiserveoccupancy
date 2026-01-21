@@ -1264,19 +1264,26 @@ def main():
                 st.markdown("---")
         
         # Quick reference
+        # Quick reference
         st.markdown("""
         ---
         ### 🚀 Quick Reference
         
-        **Optimal State:** High SLA (≥90%) + Good Occupancy (75-85%)
+        **Typical Trade-off Ranges:**
+        
+        | Service Level Target | Typical Occupancy Range | Use Case |
+        |----------------------|-------------------------|----------|
+        | 90-95% (High Quality) | 60-75% | Premium/Service-focused centers |
+        | 85-90% (Balanced) | 70-80% | Standard call centers |
+        | 80-85% (Efficient) | 75-85% | Cost-sensitive operations |
         
         **Warning Signs:**
-        - SLA < 90% with Occupancy > 85% → Overworked agents
-        - SLA > 95% with Occupancy < 70% → Underutilized agents
+        - SLA < 80% with Occupancy > 85% → Overworked agents, poor service
+        - SLA > 95% with Occupancy < 60% → Underutilized resources, high costs
         
         **Key Ratios:**
-        - Agent-to-Traffic: Aim for N/A ≈ 1.1-1.3
-        - Occupancy-to-SLA: Higher occupancy often means lower SLA
+        - Agent-to-Traffic: Aim for N/A ≈ 1.1-1.3 for balanced operations
+        - Service Factor: SLA × Occupancy ÷ 100 (aim for 60-75)
         """)
     
     # ========================
