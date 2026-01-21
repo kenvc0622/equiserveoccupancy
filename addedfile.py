@@ -645,32 +645,32 @@ def main():
             risk_colors = {'Low': 0, 'Medium': 1, 'High': 2, 'Severe': 3}
             risk_numeric = [risk_colors[r] for r in results_df['Risk_Level']]
                             
-                            fig.add_trace(
-                                go.Heatmap(
-                                    x=results_df['Hour'],
-                                    y=['Risk'],
-                                    z=[risk_numeric],  # 2D array for heatmap
-                                    colorscale=[[0, 'green'], [0.3, 'yellow'], [0.6, 'orange'], [1, 'red']],
-                                    showscale=True,
-                                    colorbar=dict(title="Risk Level", tickvals=[0, 1, 2, 3], ticktext=['Low', 'Medium', 'High', 'Severe']),
-                                    hovertext=results_df['Risk_Level'],
-                                    hoverinfo='text'
-                                ),
-                                row=2, col=2
-                            )
-                            fig.update_yaxes(title_text="Risk", row=2, col=2)
+            fig.add_trace(
+                go.Heatmap(
+                    x=results_df['Hour'],
+                    y=['Risk'],
+                    z=[risk_numeric],  # 2D array for heatmap
+                    colorscale=[[0, 'green'], [0.3, 'yellow'], [0.6, 'orange'], [1, 'red']],
+                    showscale=True,
+                    colorbar=dict(title="Risk Level", tickvals=[0, 1, 2, 3], ticktext=['Low', 'Medium', 'High', 'Severe']),
+                    hovertext=results_df['Risk_Level'],
+                    hoverinfo='text'
+                ),
+                row=2, col=2
+            )
+            fig.update_yaxes(title_text="Risk", row=2, col=2)
                             
                             # Update layout
-                            fig.update_layout(
-                                height=600, 
-                                showlegend=False,
-                                title_text="Hour-by-Hour Analysis Dashboard",
-                                title_x=0.5
-                            )
+            fig.update_layout(
+                height=600, 
+                showlegend=False,
+                title_text="Hour-by-Hour Analysis Dashboard",
+                title_x=0.5
+            )
                             
                             # Update x-axis labels for all subplots
-                            fig.update_xaxes(title_text="Hour of Day", row=2, col=1)
-                            fig.update_xaxes(title_text="Hour of Day", row=2, col=2)
+            fig.update_xaxes(title_text="Hour of Day", row=2, col=1)
+            fig.update_xaxes(title_text="Hour of Day", row=2, col=2)
                             fig.update_xaxes(title_text="Hour of Day", row=1, col=1)
                             fig.update_xaxes(title_text="Hour of Day", row=1, col=2)
                             
