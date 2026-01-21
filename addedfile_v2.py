@@ -1154,7 +1154,7 @@ def main():
                                     ) * 100
                                     
                                     # Format as ratio (Occupancy:SLA)
-                                    ratio = f"{int(round(occupancy))}||{int(round(sla))}"
+                                    ratio = f"{int(round(occupancy))}|{int(round(sla))}"
                                     hour_data[str(hc)] = ratio
                                 
                                 scenario_matrix.append(hour_data)
