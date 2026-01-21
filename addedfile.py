@@ -728,38 +728,36 @@ def main():
                         """)
                             
                             # EXPORT SECTION
-                            st.subheader("📤 Export Options")
+            st.subheader("📤 Export Options")
                             
-                            col1, col2 = st.columns(2)
+            col1, col2 = st.columns(2)
                             
-                            with col1:
+            with col1:
                                 # Export to CSV
-                                csv = results_df.to_csv(index=False)
-                                b64 = base64.b64encode(csv.encode()).decode()
-                                href = f'<a href="data:file/csv;base64,{b64}" download="hourly_staffing_plan.csv" class="button">📥 Download Full CSV</a>'
-                                st.markdown(href, unsafe_allow_html=True)
+                csv = results_df.to_csv(index=False)
+                b64 = base64.b64encode(csv.encode()).decode()
+                href = f'<a href="data:file/csv;base64,{b64}" download="hourly_staffing_plan.csv" class="button">📥 Download Full CSV</a>'
+                st.markdown(href, unsafe_allow_html=True)
                                 
-                                if precarious_hours:
-                                    precarious_csv = pd.DataFrame(precarious_hours).to_csv(index=False)
-                                    b64_precarious = base64.b64encode(precarious_csv.encode()).decode()
-                                    href_precarious = f'<a href="data:file/csv;base64,{b64_precarious}" download="precarious_hours.csv" class="button">📥 Download Precarious Hours CSV</a>'
-                                    st.markdown(href_precarious, unsafe_allow_html=True)
+                if precarious_hours:
+                    precarious_csv = pd.DataFrame(precarious_hours).to_csv(index=False)
+                    b64_precarious = base64.b64encode(precarious_csv.encode()).decode()
+                    href_precarious = f'<a href="data:file/csv;base64,{b64_precarious}" download="precarious_hours.csv" class="button">📥 Download Precarious Hours CSV</a>'
+                    st.markdown(href_precarious, unsafe_allow_html=True)
                             
-                            with col2:
+            with col2:
                                 # Summary export
-                                summary_data = {
-                                    'Metric': ['Total Calls', 'Avg Calls/Hour', 'Max Staffing', 'Avg Staffing', 
-                                              'Avg Occupancy', 'Avg SLA', 'Risk Hours', 'Target SLA', 'Target Occupancy'],
-                                    'Value': [total_calls, avg_calls, max_hc, avg_hc, avg_occ, avg_sla, 
-                                             f"{risk_hours}/{total_hours}", f"{hbh_target_sla}%", f"{hbh_target_occ}%"]
-                                }
-                                summary_df = pd.DataFrame(summary_data)
-                                summary_csv = summary_df.to_csv(index=False)
-                                b64_summary = base64.b64encode(summary_csv.encode()).decode()
-                                href_summary = f'<a href="data:file/csv;base64,{b64_summary}" download="analysis_summary.csv">📥 Download Summary CSV</a>'
-                                st.markdown(href_summary, unsafe_allow_html=True)
+                summary_data = {
+                    'Metric': ['Total Calls', 'Avg Calls/Hour', 'Max Staffing', 'Avg Staffing', 'Avg Occupancy', 'Avg SLA', 'Risk Hours', 'Target SLA', 'Target Occupancy'],
+                    'Value': [total_calls, avg_calls, max_hc, avg_hc, avg_occ, avg_sla, f"{risk_hours}/{total_hours}", f"{hbh_target_sla}%", f"{hbh_target_occ}%"]
+                }
+                summary_df = pd.DataFrame(summary_data)
+                summary_csv = summary_df.to_csv(index=False)
+                b64_summary = base64.b64encode(summary_csv.encode()).decode()
+                href_summary = f'<a href="data:file/csv;base64,{b64_summary}" download="analysis_summary.csv">📥 Download Summary CSV</a>'
+                st.markdown(href_summary, unsafe_allow_html=True)
                             
-                            st.caption("Note: Download files for detailed analysis and reporting")
+            st.caption("Note: Download files for detailed analysis and reporting")
                             
             except Exception as e:
                 st.error(f"Error processing file: {str(e)}")
