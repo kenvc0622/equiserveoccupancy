@@ -15,7 +15,7 @@ warnings.filterwarnings('ignore')
 
 # Set page configuration
 st.set_page_config(
-    page_title="Call Center Occupancy Analysis",
+    page_title="Equiserve Occupancy Analysis",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -167,7 +167,7 @@ with st.sidebar:
 # ========================
 
 def main():
-    st.title("📞 Call Center Occupancy Analysis Tool")
+    st.title("📞 Equiserve Occupancy Analysis Tool")
     st.markdown("""
     This tool helps analyze and optimize the trade-off between agent occupancy and service level (SLA) 
     in call center operations using Erlang C calculations.
@@ -943,7 +943,7 @@ else:
     st.markdown("---")
     st.markdown("""
     <div style='text-align: center'>
-        <p>Call Center Occupancy Analysis Tool v2.5 | Based on Erlang C Queueing Theory</p>
+        <p>Equiserve Occupancy Analysis Tool v2.5 | Based on Erlang C Queueing Theory</p>
         <p><small>Note: Results are estimates based on mathematical models. Real-world factors may vary.</small></p>
     </div>
     """, unsafe_allow_html=True)
