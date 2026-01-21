@@ -763,6 +763,7 @@ try:
 except Exception as e:
     st.error(f"Error processing file: {str(e)}")
     st.info("Please ensure your CSV file is properly formatted.")
+        
         else:
             # Show upload instructions
             st.info("""
