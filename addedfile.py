@@ -671,11 +671,12 @@ def main():
                             # Update x-axis labels for all subplots
             fig.update_xaxes(title_text="Hour of Day", row=2, col=1)
             fig.update_xaxes(title_text="Hour of Day", row=2, col=2)
-                            fig.update_xaxes(title_text="Hour of Day", row=1, col=1)
-                            fig.update_xaxes(title_text="Hour of Day", row=1, col=2)
+            fig.update_xaxes(title_text="Hour of Day", row=1, col=1)
+            fig.update_xaxes(title_text="Hour of Day", row=1, col=2)
                             
-                            st.plotly_chart(fig, use_container_width=True)
-                            # END MATPLOTLIB EDITS ----
+            st.plotly_chart(fig, use_container_width=True)
+                            
+            # END MATPLOTLIB EDITS ----
                             
                             # PRECARIOUS HOURS RECOMMENDATION PANEL
                             if precarious_hours:
