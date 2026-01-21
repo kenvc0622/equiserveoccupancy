@@ -1108,7 +1108,152 @@ def main():
                                         - Recommended: Add {hour['Additional_HC_Needed']} agents
                                         - Consider: Cross-training or queue prioritization
                                         """)
+                            ### 1-21-2026
+                            # After generating results_df and before the export section:
+                            # Add scenario matrix to the results
                             
+                            # Calculate headcount range (with buffer)
+                            min_hc = int(np.floor(results_df['Required_HC'].min())) - 2  # Buffer below
+                            max_hc = int(np.ceil(results_df['Prop_Sched_HC'].max())) + 5  # Buffer above
+                            min_hc = max(1, min_hc)  # Ensure at least 1
+                            
+                            # Create scenario matrix
+                            scenario_matrix = []
+                            
+                            for _, row in results_df.iterrows():
+                                hour_data = {
+                                    'Hour': row['Hour'],
+                                    'Forecasted_Calls': row['Forecasted_Calls'],
+                                    'AHT_Seconds': row['AHT_Seconds'],
+                                    'Shrinkage_Pct': row['Shrinkage_Pct'],
+                                    'Required_HC': row['Required_HC'],
+                                    'Prop_Sched_HC': row['Prop_Sched_HC'],
+                                    'Occupancy_Pct': row['Occupancy_Pct'],
+                                    'SLA_Pct': row['SLA_Pct'],
+                                    'Status': row['Status'],
+                                    'Risk_Level': row['Risk_Level']
+                                }
+                                
+                                # Calculate ratios for each headcount in range
+                                for hc in range(min_hc, max_hc + 1):
+                                    # Calculate occupancy for this headcount
+                                    occupancy = calculate_occupancy(
+                                        row['Forecasted_Calls'],
+                                        row['AHT_Seconds'],
+                                        hc,
+                                        3600
+                                    ) * 100
+                                    
+                                    # Calculate SLA for this headcount
+                                    traffic_intensity = (row['Forecasted_Calls'] * row['AHT_Seconds'] / 3600)
+                                    sla = calculate_service_level(
+                                        hc,
+                                        traffic_intensity,
+                                        row['AHT_Seconds'],
+                                        hbh_asa
+                                    ) * 100
+                                    
+                                    # Format as ratio (Occupancy:SLA)
+                                    ratio = f"{int(round(occupancy))}:{int(round(sla))}"
+                                    hour_data[str(hc)] = ratio
+                                
+                                scenario_matrix.append(hour_data)
+                            
+                            # Create scenario DataFrame
+                            scenario_df = pd.DataFrame(scenario_matrix)
+                            
+                            # Display scenario matrix
+                            st.subheader("📊 Headcount Scenario Matrix")
+                            st.info(f"Showing Occupancy:SLA ratios for headcounts {min_hc} to {max_hc}")
+                            
+                            # Create a scrollable container for the wide table
+                            with st.container():
+                                # Show first few columns + some scenario columns
+                                display_cols = ['Hour', 'Required_HC', 'Prop_Sched_HC', 'Occupancy_Pct', 'SLA_Pct', 'Risk_Level']
+                                
+                                # Add a few sample scenario columns
+                                sample_scenarios = list(range(min_hc, min(min_hc + 6, max_hc + 1)))
+                                display_cols.extend([str(hc) for hc in sample_scenarios])
+                                
+                                st.dataframe(scenario_df[display_cols], use_container_width=True)
+                                
+                                if max_hc - min_hc > 5:
+                                    st.caption(f"Showing columns {min_hc} to {min_hc + 5} of {min_hc} to {max_hc}. Full matrix available in CSV download.")
+                            
+                            # Update export section to include scenario matrix
+                            st.subheader("📤 Export Options")
+                            
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                # Export basic results
+                                csv_basic = results_df.to_csv(index=False)
+                                b64_basic = base64.b64encode(csv_basic.encode()).decode()
+                                href_basic = f'<a href="data:file/csv;base64,{b64_basic}" download="hourly_staffing_basic.csv">📥 Download Basic CSV</a>'
+                                st.markdown(href_basic, unsafe_allow_html=True)
+                            
+                            with col2:
+                                # Export full scenario matrix
+                                csv_scenario = scenario_df.to_csv(index=False)
+                                b64_scenario = base64.b64encode(csv_scenario.encode()).decode()
+                                href_scenario = f'<a href="data:file/csv;base64,{b64_scenario}" download="hourly_scenario_matrix.csv">📥 Download Scenario Matrix</a>'
+                                st.markdown(href_scenario, unsafe_allow_html=True)
+                            
+                            with col3:
+                                # Export summary
+                                summary_data = {
+                                    'Metric': ['Total Calls', 'Avg Calls/Hour', 'Min Required HC', 'Max Prop HC', 'Scenario Range', 
+                                              'Avg Occupancy', 'Avg SLA', 'Risk Hours', 'Target SLA', 'Target Occupancy'],
+                                    'Value': [total_calls, avg_calls, results_df['Required_HC'].min(), results_df['Prop_Sched_HC'].max(), 
+                                             f"{min_hc}-{max_hc}", f"{avg_occ:.1f}%", f"{avg_sla:.1f}%", 
+                                             f"{risk_hours}/{total_hours}", f"{hbh_target_sla}%", f"{hbh_target_occ}%"]
+                                }
+                                summary_df = pd.DataFrame(summary_data)
+                                summary_csv = summary_df.to_csv(index=False)
+                                b64_summary = base64.b64encode(summary_csv.encode()).decode()
+                                href_summary = f'<a href="data:file/csv;base64,{b64_summary}" download="analysis_summary.csv">📥 Download Summary</a>'
+                                st.markdown(href_summary, unsafe_allow_html=True)
+                            
+                            # Add scenario visualization
+                            st.subheader("📈 Scenario Heatmap Visualization")
+                            
+                            # Create heatmap data
+                            heatmap_data = []
+                            for hc in range(min_hc, max_hc + 1):
+                                hc_data = []
+                                for _, row in results_df.iterrows():
+                                    ratio = scenario_df.loc[scenario_df['Hour'] == row['Hour'], str(hc)].values[0]
+                                    occ, sla = map(int, ratio.split(':'))
+                                    # Calculate a score (higher is better - both high occupancy and high SLA)
+                                    score = (min(occ, 85) / 85 * 50) + (min(sla, 95) / 95 * 50)
+                                    hc_data.append(score)
+                                heatmap_data.append(hc_data)
+                            
+                            # Create heatmap
+                            fig = go.Figure(data=go.Heatmap(
+                                z=heatmap_data,
+                                x=results_df['Hour'],
+                                y=list(range(min_hc, max_hc + 1)),
+                                colorscale='RdYlGn',
+                                zmin=0,
+                                zmax=100,
+                                hoverongaps=False,
+                                hoverinfo='text',
+                                text=[[f"HC: {hc}<br>Hour: {hr}<br>Score: {score:.1f}/100" 
+                                       for hr, score in zip(results_df['Hour'], row_scores)] 
+                                      for hc, row_scores in zip(range(min_hc, max_hc + 1), heatmap_data)]
+                            ))
+                            
+                            fig.update_layout(
+                                title='Scenario Efficiency Heatmap',
+                                xaxis_title='Hour of Day',
+                                yaxis_title='Headcount',
+                                height=400
+                            )
+                            
+                            st.plotly_chart(fig, use_container_width=True)
+                            st.caption("Green = Better balance (high occupancy + high SLA), Red = Poor balance")
+                            ### 1-21-2026
                             # EXPORT SECTION
                             st.subheader("📤 Export Options")
                             
