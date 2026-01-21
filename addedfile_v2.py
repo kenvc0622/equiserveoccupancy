@@ -306,10 +306,12 @@ def main():
     # ========================
     # TAB 2: OPTIMIZATION ENGINE (Updated with global targets)
     # ========================
-    
     with tab2:
         st.header("⚙️ OPTIMIZATION ENGINE")
-        st.info(f"**Optimizing for:** SLA ≥ {st.session_state.global_target_sla}%, Occupancy ≥ {st.session_state.global_target_occupancy}%")
+        
+        st.markdown("""
+        ### Find optimal staffing levels balancing occupancy and service level targets.
+        """)
         
         col1, col2 = st.columns(2)
         
@@ -319,11 +321,10 @@ def main():
             opt_ASA = st.slider("ASA Target (s):", 5, 300, 30, 5, key="opt_ASA")
         
         with col2:
-            # Use global targets instead of separate sliders
-            opt_target_sla = st.session_state.global_target_sla
-            opt_target_occ = st.session_state.global_target_occupancy / 100  # Convert % to decimal
+            opt_target_sla = st.slider("Target Service Level (%):", 50, 99, 90, 1, key="opt_target_sla")
+            opt_target_occ = st.slider("Target Occupancy:", 0.1, 1.0, 0.8, 0.01, format="%.0f%%", key="opt_target_occ")
             opt_interval = st.selectbox("Interval Duration:", [15, 30, 60], index=2, key="opt_interval")
-                
+        
         if st.button("🚀 Run Optimization Analysis", type="primary", key="run_opt"):
             with st.spinner("Running optimization analysis..."):
                 # Calculate traffic intensity
