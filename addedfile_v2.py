@@ -175,7 +175,7 @@ def main():
     
     # Create tabs - ADDING NEW TERMINOLOGY TAB
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "📈 Dynamic Trade-off Analysis",
+        "📈 Yehey Dynamic Trade-off Analysis",
         "⚙️ Optimization Engine", 
         "📐 Mathematical Analysis",
         "📊 Results Dashboard",
