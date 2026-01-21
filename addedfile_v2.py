@@ -302,16 +302,13 @@ def main():
                 
                 plt.tight_layout()
                 st.pyplot(fig)
-    
-    # ========================
+        # ========================
     # TAB 2: OPTIMIZATION ENGINE (Updated with global targets)
     # ========================
+    
     with tab2:
         st.header("⚙️ OPTIMIZATION ENGINE")
-        
-        st.markdown("""
-        ### Find optimal staffing levels balancing occupancy and service level targets.
-        """)
+        st.info(f"**Optimizing for:** SLA ≥ {st.session_state.global_target_sla}%, Occupancy ≥ {st.session_state.global_target_occupancy}%")
         
         col1, col2 = st.columns(2)
         
@@ -321,139 +318,195 @@ def main():
             opt_ASA = st.slider("ASA Target (s):", 5, 300, 30, 5, key="opt_ASA")
         
         with col2:
-            opt_target_sla = st.slider("Target Service Level (%):", 50, 99, 90, 1, key="opt_target_sla")
-            opt_target_occ = st.slider("Target Occupancy:", 0.1, 1.0, 0.8, 0.01, format="%.0f%%", key="opt_target_occ")
+            # Use global targets instead of separate sliders
+            opt_target_sla = st.session_state.global_target_sla
+            opt_target_occ = st.session_state.global_target_occupancy
             opt_interval = st.selectbox("Interval Duration:", [15, 30, 60], index=2, key="opt_interval")
         
         if st.button("🚀 Run Optimization Analysis", type="primary", key="run_opt"):
             with st.spinner("Running optimization analysis..."):
                 # Calculate traffic intensity
-                traffic_intensity = (opt_volume * opt_AHT / 3600)
-                interval_seconds = opt_interval * 60
+                traffic_intensity = (opt_volume * opt_AHT) / 3600
                 
-                # Find optimal headcount for SLA
-                optimal_hc_sla, achieved_sla = optimize_headcount_for_sla(
-                    opt_volume, opt_AHT, opt_target_sla, opt_ASA, interval_seconds
-                )
+                # Find optimal headcount range
+                min_hc = max(1, int(traffic_intensity) + 1)
+                max_hc = min_hc + 20
                 
-                # Calculate occupancy at optimal headcount for SLA
-                occ_at_optimal_sla = calculate_occupancy(opt_volume, opt_AHT, optimal_hc_sla, interval_seconds)
-                
-                # Find headcount for target occupancy
-                required_hc_occ = calculate_required_headcount(opt_volume, opt_AHT, opt_target_occ, interval_seconds)
-                sl_at_target_occ = calculate_service_level(required_hc_occ, traffic_intensity, opt_AHT, opt_ASA) * 100
-                
-                # Find balanced solution (closest to both targets)
-                def balanced_objective(N):
-                    occ = calculate_occupancy(opt_volume, opt_AHT, N, interval_seconds)
-                    sla = calculate_service_level(N, traffic_intensity, opt_AHT, opt_ASA) * 100
+                # Analyze different headcounts
+                results = []
+                for hc in range(min_hc, max_hc + 1):
+                    # Calculate metrics
+                    sla = calculate_service_level(hc, traffic_intensity, opt_AHT, opt_ASA) * 100
+                    occupancy = calculate_occupancy(opt_volume, opt_AHT, hc, opt_interval * 60) * 100
                     
-                    # Weighted penalty function
-                    occ_penalty = (occ - opt_target_occ) ** 2
-                    sla_penalty = max(0, opt_target_sla - sla) ** 2 * 2  # Heavier penalty for missing SLA
+                    # Calculate efficiency score (balanced approach)
+                    sla_score = min(100, sla / opt_target_sla * 100) if opt_target_sla > 0 else 0
+                    occ_score = min(100, occupancy / opt_target_occ * 100) if opt_target_occ > 0 else 0
+                    efficiency_score = (sla_score * 0.6 + occ_score * 0.4)  # Weighted average
                     
-                    return occ_penalty + sla_penalty
+                    # Determine optimization strategy
+                    if sla >= opt_target_sla and occupancy >= opt_target_occ:
+                        strategy = "✅ Balanced"
+                    elif sla >= opt_target_sla:
+                        strategy = "📈 SLA-Optimized"
+                    elif occupancy >= opt_target_occ:
+                        strategy = "📊 Occupancy-Targeted"
+                    else:
+                        strategy = "⚠️ Suboptimal"
+                    
+                    results.append({
+                        'Headcount': hc,
+                        'SLA %': f"{sla:.1f}%",
+                        'Occupancy %': f"{occupancy:.1f}%",
+                        'Efficiency Score': f"{efficiency_score:.1f}",
+                        'Strategy': strategy
+                    })
                 
-                # Search for balanced solution
-                lower_bound = max(1, int(traffic_intensity) + 1)
-                upper_bound = max(lower_bound + 20, int(required_hc_occ * 1.5))
+                # Create DataFrame
+                results_df = pd.DataFrame(results)
                 
-                try:
-                    result = minimize_scalar(
-                        balanced_objective,
-                        bounds=(lower_bound, upper_bound),
-                        method='bounded',
-                        options={'xatol': 0.1}
-                    )
-                    balanced_hc = max(1, np.round(result.x))
-                except:
-                    balanced_hc = (optimal_hc_sla + required_hc_occ) / 2
-                
-                balanced_occ = calculate_occupancy(opt_volume, opt_AHT, balanced_hc, interval_seconds) * 100
-                balanced_sla = calculate_service_level(balanced_hc, traffic_intensity, opt_AHT, opt_ASA) * 100
+                # Find optimal solutions
+                sla_optimal = results_df[results_df['SLA %'].str.replace('%', '').astype(float) >= opt_target_sla].iloc[0] if not results_df[results_df['SLA %'].str.replace('%', '').astype(float) >= opt_target_sla].empty else None
+                occ_optimal = results_df[results_df['Occupancy %'].str.replace('%', '').astype(float) >= opt_target_occ].iloc[0] if not results_df[results_df['Occupancy %'].str.replace('%', '').astype(float) >= opt_target_occ].empty else None
+                balanced_optimal = results_df.sort_values('Efficiency Score', ascending=False).iloc[0]
                 
                 # Display results
-                st.subheader("🎯 Optimization Results")
+                st.subheader("📊 Optimization Results")
                 
-                col1, col2, col3 = st.columns(3)
+                # Display optimal solutions
+                opt_col1, opt_col2, opt_col3 = st.columns(3)
                 
-                with col1:
-                    st.metric("SLA-Optimized", 
-                             f"{optimal_hc_sla:.1f} agents",
-                             f"SLA: {achieved_sla:.1f}%",
-                             delta_color="normal")
-                    st.caption(f"Occupancy: {occ_at_optimal_sla*100:.1f}%")
+                with opt_col1:
+                    if sla_optimal is not None:
+                        st.metric(
+                            "SLA-Optimized",
+                            f"{sla_optimal['Headcount']} agents",
+                            f"{sla_optimal['SLA %']} SLA"
+                        )
+                    else:
+                        st.metric("SLA-Optimized", "Not achieved", "Below target")
                 
-                with col2:
-                    st.metric("Occupancy-Targeted", 
-                             f"{required_hc_occ:.1f} agents",
-                             f"Occupancy: {opt_target_occ*100:.0f}%",
-                             delta_color="normal")
-                    st.caption(f"Service Level: {sl_at_target_occ:.1f}%")
+                with opt_col2:
+                    if occ_optimal is not None:
+                        st.metric(
+                            "Occupancy-Targeted",
+                            f"{occ_optimal['Headcount']} agents",
+                            f"{occ_optimal['Occupancy %']} Occupancy"
+                        )
+                    else:
+                        st.metric("Occupancy-Targeted", "Not achieved", "Below target")
                 
-                with col3:
-                    st.metric("Balanced Solution", 
-                             f"{balanced_hc:.1f} agents",
-                             f"Occ: {balanced_occ:.1f}%, SLA: {balanced_sla:.1f}%",
-                             delta_color="normal")
-                    st.caption("Best trade-off")
+                with opt_col3:
+                    st.metric(
+                        "Balanced Solution",
+                        f"{balanced_optimal['Headcount']} agents",
+                        f"Score: {balanced_optimal['Efficiency Score']}"
+                    )
                 
-                # Recommendations
-                st.subheader("📋 Recommendations")
+                # Display detailed table
+                st.subheader("📈 Detailed Analysis")
                 
-                if balanced_sla >= opt_target_sla and balanced_occ/100 >= opt_target_occ:
-                    st.success(f"✅ **Recommended**: Use **{balanced_hc:.1f} agents** - achieves both targets (SLA: {balanced_sla:.1f}%, Occupancy: {balanced_occ:.1f}%)")
-                elif achieved_sla >= opt_target_sla:
-                    st.warning(f"⚠️ **Consider**: **{optimal_hc_sla:.1f} agents** - meets SLA target but occupancy is {occ_at_optimal_sla*100:.1f}%")
-                else:
-                    st.error(f"❌ **Challenge**: Cannot meet both targets simultaneously. Consider adjusting volume, AHT, or targets.")
+                # Color function for strategies
+                def color_strategy(val):
+                    if val == "✅ Balanced":
+                        return 'background-color: #d4edda; color: #155724;'
+                    elif val == "📈 SLA-Optimized":
+                        return 'background-color: #cce5ff; color: #004085;'
+                    elif val == "📊 Occupancy-Targeted":
+                        return 'background-color: #fff3cd; color: #856404;'
+                    else:
+                        return 'background-color: #f8d7da; color: #721c24;'
                 
-                # Visualization
+                styled_df = results_df.style.applymap(color_strategy, subset=['Strategy'])
+                st.dataframe(styled_df, use_container_width=True)
+                
+                # Create visualization
                 fig, ax = plt.subplots(figsize=(10, 6))
                 
-                # Generate curve
-                hc_range = np.linspace(max(1, traffic_intensity + 1), max(traffic_intensity * 3, 20), 100)
-                occ_values = [calculate_occupancy(opt_volume, opt_AHT, hc, interval_seconds) * 100 for hc in hc_range]
-                sla_values = [calculate_service_level(hc, traffic_intensity, opt_AHT, opt_ASA) * 100 for hc in hc_range]
+                # Prepare data
+                hc_values = results_df['Headcount'].tolist()
+                sla_values = [float(x.replace('%', '')) for x in results_df['SLA %']]
+                occ_values = [float(x.replace('%', '')) for x in results_df['Occupancy %']]
+                eff_values = [float(x) for x in results_df['Efficiency Score']]
                 
-                # Plot trade-off curve
-                ax.plot(occ_values, sla_values, 'b-', linewidth=2, label='Trade-off Curve')
-                
-                # Plot optimal points
-                ax.scatter([occ_at_optimal_sla*100], [achieved_sla], color='red', s=150, 
-                          label=f'SLA-Optimized ({optimal_hc_sla:.1f} agents)', zorder=5)
-                ax.scatter([opt_target_occ*100], [sl_at_target_occ], color='green', s=150,
-                          label=f'Occ-Targeted ({required_hc_occ:.1f} agents)', zorder=5)
-                ax.scatter([balanced_occ], [balanced_sla], color='purple', s=200, marker='*',
-                          label=f'Balanced ({balanced_hc:.1f} agents)', zorder=6)
+                # Plot SLA and Occupancy
+                ax.plot(hc_values, sla_values, 'g-', linewidth=2.5, label='SLA %')
+                ax.plot(hc_values, occ_values, 'b-', linewidth=2.5, label='Occupancy %')
                 
                 # Add target lines
-                ax.axvline(x=opt_target_occ*100, color='orange', linestyle='--', alpha=0.7, label=f'Target Occupancy')
-                ax.axhline(y=opt_target_sla, color='darkgreen', linestyle='--', alpha=0.7, label=f'Target SLA')
+                ax.axhline(y=opt_target_sla, color='darkgreen', linestyle=':', linewidth=2, label=f'Target SLA ({opt_target_sla}%)')
+                ax.axhline(y=opt_target_occ, color='darkblue', linestyle=':', linewidth=2, label=f'Target Occ ({opt_target_occ}%)')
                 
-                # Formatting
-                ax.set_xlabel('Occupancy (%)', fontsize=12, fontweight='bold')
-                ax.set_ylabel('Service Level (%)', fontsize=12, fontweight='bold')
-                ax.set_title('Optimization Analysis: Occupancy vs Service Level', fontsize=14, fontweight='bold')
+                # Highlight optimal points
+                if sla_optimal is not None:
+                    ax.plot(sla_optimal['Headcount'], float(sla_optimal['SLA %'].replace('%', '')), 
+                           'go', markersize=10, label='SLA-Optimal')
+                
+                if occ_optimal is not None:
+                    ax.plot(occ_optimal['Headcount'], float(occ_optimal['Occupancy %'].replace('%', '')), 
+                           'bo', markersize=10, label='Occ-Optimal')
+                
+                ax.plot(balanced_optimal['Headcount'], float(balanced_optimal['SLA %'].replace('%', '')), 
+                       'ro', markersize=10, label='Balanced')
+                
+                ax.set_xlabel('Headcount', fontsize=11, fontweight='bold')
+                ax.set_ylabel('Percentage (%)', fontsize=11, fontweight='bold')
+                ax.set_title('Optimization Analysis: SLA vs Occupancy Trade-off', fontsize=12, fontweight='bold')
                 ax.grid(True, alpha=0.3)
                 ax.legend(loc='best')
-                ax.set_xlim(0, 100)
-                ax.set_ylim(0, 100)
                 
                 plt.tight_layout()
                 st.pyplot(fig)
                 
-                # Store results
-                st.session_state.optimization_results = {
-                    'optimal_hc_sla': optimal_hc_sla,
-                    'achieved_sla': achieved_sla,
-                    'required_hc_occ': required_hc_occ,
-                    'sl_at_target_occ': sl_at_target_occ,
-                    'balanced_hc': balanced_hc,
-                    'balanced_occ': balanced_occ,
-                    'balanced_sla': balanced_sla
-                }
-    
+                # Efficiency score plot
+                fig2, ax2 = plt.subplots(figsize=(10, 4))
+                
+                ax2.plot(hc_values, eff_values, 'purple', linewidth=2.5, label='Efficiency Score')
+                ax2.plot(balanced_optimal['Headcount'], float(balanced_optimal['Efficiency Score']), 
+                        'ro', markersize=10, label='Optimal Point')
+                ax2.set_xlabel('Headcount', fontsize=11, fontweight='bold')
+                ax2.set_ylabel('Efficiency Score', fontsize=11, fontweight='bold')
+                ax2.set_title('Efficiency Score vs Headcount', fontsize=12, fontweight='bold')
+                ax2.grid(True, alpha=0.3)
+                ax2.legend(loc='best')
+                
+                plt.tight_layout()
+                st.pyplot(fig2)
+                
+                # Recommendations
+                st.subheader("💡 Recommendations")
+                
+                rec_col1, rec_col2 = st.columns(2)
+                
+                with rec_col1:
+                    st.info("""
+                    **Based on your targets:**
+                    - **Target SLA:** {}%
+                    - **Target Occupancy:** {}%
+                    
+                    **Traffic Intensity:** {:.2f} Erlangs
+                    **Minimum Agents Required:** {} (N > A)
+                    """.format(opt_target_sla, opt_target_occ, traffic_intensity, min_hc))
+                
+                with rec_col2:
+                    st.success("""
+                    **Recommended Staffing:**
+                    
+                    **{} agents** (Balanced Solution)
+                    - Expected SLA: {}
+                    - Expected Occupancy: {}
+                    - Efficiency Score: {}
+                    
+                    **Trade-off:** {}
+                    """.format(
+                        balanced_optimal['Headcount'],
+                        balanced_optimal['SLA %'],
+                        balanced_optimal['Occupancy %'],
+                        balanced_optimal['Efficiency Score'],
+                        balanced_optimal['Strategy']
+                    ))
+                
+                st.success("✅ Optimization complete!")
     # ========================
     # TAB 3: MATHEMATICAL ANALYSIS (Updated with global targets)
     # ========================
