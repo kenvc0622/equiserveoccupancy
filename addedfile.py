@@ -589,25 +589,25 @@ def main():
             )
                             
                             # Chart 1: Volume vs Staffing
-                            fig.add_trace(
-                                go.Bar(
-                                    x=results_df['Hour'],
-                                    y=results_df['Forecasted_Calls'],
-                                    name='Volume',
-                                    marker_color='lightblue'
-                                ),
-                                row=1, col=1
-                            )
-                            fig.add_trace(
-                                go.Scatter(
-                                    x=results_df['Hour'],
-                                    y=results_df['Prop_Sched_HC'],
-                                    name='Staffing',
-                                    yaxis='y2',
-                                    line=dict(color='red', width=2)
-                                ),
-                                row=1, col=1
-                            )
+            fig.add_trace(
+                go.Bar(
+                    x=results_df['Hour'],
+                    y=results_df['Forecasted_Calls'],
+                    name='Volume',
+                    marker_color='lightblue'
+                ),
+                row=1, col=1
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=results_df['Hour'],
+                    y=results_df['Prop_Sched_HC'],
+                    name='Staffing',
+                    yaxis='y2',
+                    line=dict(color='red', width=2)
+                ),
+                row=1, col=1
+            )
                             
                             # Add secondary y-axis for chart 1
                             fig.update_yaxes(title_text="Volume", row=1, col=1)
