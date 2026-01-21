@@ -758,13 +758,14 @@ try:
                 st.markdown(href_summary, unsafe_allow_html=True)
                             
             st.caption("Note: Download files for detailed analysis and reporting")
-                            
-#except Exception as e:
-#    st.error(f"Error processing file: {str(e)}")
-#    st.info("Please ensure your CSV file is properly formatted.")
-else:
+
+
+except Exception as e:
+    st.error(f"Error processing file: {str(e)}")
+    st.info("Please ensure your CSV file is properly formatted.")
+        else:
             # Show upload instructions
-    st.info("""
+            st.info("""
     ### 📋 Expected CSV Format:
             
     Create a CSV file with these columns:
