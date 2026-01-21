@@ -413,24 +413,24 @@ def main():
                     - $AHT$ = {math_AHT} seconds  
                     - $N-A$ = Agent surplus
                     """)
-                
+                    
                 with col_math2:
-                    st.markdown("""
+                    st.markdown(f"""
                     ### Key Relationships:
                     
                     1. **Traffic Intensity (A)**:  
-                       \( A = \frac{\text{Volume} \times AHT}{3600} \)
+                       $$A = \\frac{{\\text{{Volume}} \\times AHT}}{{3600}}$$
                     
                     2. **Occupancy**:  
-                       \( \text{Occ} = \frac{\text{Volume} \times AHT}{N \times \text{Interval}} \)
+                       $$\\text{{Occ}} = \\frac{{\\text{{Volume}} \\times AHT}}{{N \\times \\text{{Interval}}}}$$
                     
                     3. **Utilization Ratio**:  
-                       \( U = \frac{A}{N} \times 100\% \)
+                       $$U = \\frac{{A}}{{N}} \\times 100\\%$$
                     
                     4. **Agent Requirements**:  
-                       Minimum agents needed: \( N > A \)
+                       Minimum agents needed: $N > A$
                     """)
-                
+                    
                 # Create visualizations
                 st.subheader("Mathematical Relationships")
                 
