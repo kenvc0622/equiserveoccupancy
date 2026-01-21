@@ -610,38 +610,36 @@ def main():
             )
                             
                             # Add secondary y-axis for chart 1
-                            fig.update_yaxes(title_text="Volume", row=1, col=1)
-                            fig.update_yaxes(title_text="Staffing", secondary_y=True, row=1, col=1)
+            fig.update_yaxes(title_text="Volume", row=1, col=1)
+            fig.update_yaxes(title_text="Staffing", secondary_y=True, row=1, col=1)
                             
                             # Chart 2: Occupancy Trend
-                            fig.add_trace(
-                                go.Scatter(
-                                    x=results_df['Hour'],
-                                    y=results_df['Occupancy_Pct'],
-                                    name='Occupancy',
-                                    line=dict(color='green', width=3),
-                                    fill='tozeroy'
-                                ),
-                                row=1, col=2
-                            )
-                            fig.add_hline(y=hbh_target_occ, line_dash="dash", line_color="orange", 
-                                         row=1, col=2)
-                            fig.update_yaxes(title_text="Occupancy (%)", row=1, col=2)
+            fig.add_trace(
+                go.Scatter(
+                    x=results_df['Hour'],
+                    y=results_df['Occupancy_Pct'],
+                    name='Occupancy',
+                    line=dict(color='green', width=3),
+                    fill='tozeroy'
+                ),
+                row=1, col=2
+            )
+            fig.add_hline(y=hbh_target_occ, line_dash="dash", line_color="orange", row=1, col=2)
+            fig.update_yaxes(title_text="Occupancy (%)", row=1, col=2)
                             
                             # Chart 3: SLA Performance
-                            fig.add_trace(
-                                go.Scatter(
-                                    x=results_df['Hour'],
-                                    y=results_df['SLA_Pct'],
-                                    name='SLA',
-                                    line=dict(color='purple', width=3),
-                                    mode='lines+markers'
-                                ),
-                                row=2, col=1
-                            )
-                            fig.add_hline(y=hbh_target_sla, line_dash="dash", line_color="darkgreen",
-                                         row=2, col=1)
-                            fig.update_yaxes(title_text="SLA (%)", row=2, col=1)
+            fig.add_trace(
+                go.Scatter(
+                    x=results_df['Hour'],
+                    y=results_df['SLA_Pct'],
+                    name='SLA',
+                    line=dict(color='purple', width=3),
+                    mode='lines+markers'
+                ),
+                row=2, col=1
+            )
+            fig.add_hline(y=hbh_target_sla, line_dash="dash", line_color="darkgreen", row=2, col=1)
+            fig.update_yaxes(title_text="SLA (%)", row=2, col=1)
                             
                             # Chart 4: Risk Heatmap
                             risk_colors = {'Low': 0, 'Medium': 1, 'High': 2, 'Severe': 3}
