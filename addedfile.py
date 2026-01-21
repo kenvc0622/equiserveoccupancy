@@ -698,34 +698,34 @@ def main():
                         use_container_width=True
                                     )
                                 
-                                with col2:
-                                    st.info("""
-                                    **💡 Recommendations:**
-                                    - **Severe Risk**: Add 10-15% more agents
-                                    - **High Risk**: Add 5-10% more agents
-                                    - **Medium Risk**: Monitor closely
-                                    - Consider shift adjustments
-                                    - Review break schedules
-                                    """)
+                with col2:
+                    st.info("""
+                    **💡 Recommendations:**
+                    - **Severe Risk**: Add 10-15% more agents
+                    - **High Risk**: Add 5-10% more agents
+                    - **Medium Risk**: Monitor closely
+                    - Consider shift adjustments
+                    - Review break schedules
+                    """)
                                 
                                 # Detailed recommendations by hour
-                                st.markdown("#### 📋 Hour-by-Hour Action Plan")
+                st.markdown("#### 📋 Hour-by-Hour Action Plan")
                                 
-                                for hour in precarious_hours:
-                                    if hour['Risk_Level'] == 'Severe':
-                                        st.error(f"""
-                                        **❌ {hour['Hour']} - SEVERE RISK**
-                                        - Current SLA: {hour['SLA_Pct']}% (Critical)
-                                        - Recommended: Add {hour['Additional_HC_Needed']} agents
-                                        - Alternative: Reduce AHT by 10-15%
-                                        """)
-                                    elif hour['Risk_Level'] == 'High':
-                                        st.warning(f"""
-                                        **⚠️ {hour['Hour']} - HIGH RISK**
-                                        - Current SLA: {hour['SLA_Pct']}% (Below Target)
-                                        - Recommended: Add {hour['Additional_HC_Needed']} agents
-                                        - Consider: Cross-training or queue prioritization
-                                        """)
+                for hour in precarious_hours:
+                    if hour['Risk_Level'] == 'Severe':
+                        st.error(f"""
+                        **❌ {hour['Hour']} - SEVERE RISK**
+                        - Current SLA: {hour['SLA_Pct']}% (Critical)
+                        - Recommended: Add {hour['Additional_HC_Needed']} agents
+                        - Alternative: Reduce AHT by 10-15%
+                        """)
+                    elif hour['Risk_Level'] == 'High':
+                        st.warning(f"""
+                        **⚠️ {hour['Hour']} - HIGH RISK**
+                        - Current SLA: {hour['SLA_Pct']}% (Below Target)
+                        - Recommended: Add {hour['Additional_HC_Needed']} agents
+                        - Consider: Cross-training or queue prioritization
+                        """)
                             
                             # EXPORT SECTION
                             st.subheader("📤 Export Options")
