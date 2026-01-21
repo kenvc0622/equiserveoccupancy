@@ -581,13 +581,12 @@ def main():
                             # ========================
                             
                             # Create interactive Plotly charts
-                            fig = make_subplots(
-                                rows=2, cols=2,
-                                subplot_titles=('Volume vs Staffing', 'Occupancy Trend', 
-                                               'SLA Performance', 'Risk Heatmap'),
-                                vertical_spacing=0.15,
-                                horizontal_spacing=0.15
-                            )
+            fig = make_subplots(
+                rows=2, cols=2,                
+                subplot_titles=('Volume vs Staffing', 'Occupancy Trend', 'SLA Performance', 'Risk Heatmap'),
+                vertical_spacing=0.15,
+                horizontal_spacing=0.15
+            )
                             
                             # Chart 1: Volume vs Staffing
                             fig.add_trace(
