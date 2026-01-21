@@ -574,70 +574,107 @@ def main():
 
 # ---- START MATPLOTLIB EDITS -------                            
 # ========================
-# MATPLOTLIB VERSION (SIMPLER, NO PLOTLY DEPENDENCY)
+# CORRECTED PLOTLY CODE FOR ENHANCED VISUALIZATIONS
 # ========================
 
-fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+# Create interactive Plotly charts
+fig = make_subplots(
+    rows=2, cols=2,
+    subplot_titles=('Volume vs Staffing', 'Occupancy Trend', 
+                   'SLA Performance', 'Risk Heatmap'),
+    vertical_spacing=0.15,
+    horizontal_spacing=0.15
+)
 
 # Chart 1: Volume vs Staffing
-ax1 = axes[0, 0]
-ax1.bar(results_df['Hour'], results_df['Forecasted_Calls'], alpha=0.6, label='Volume')
-ax1.set_xlabel('Hour')
-ax1.set_ylabel('Volume (calls)', color='blue')
-ax1.tick_params(axis='y', labelcolor='blue')
+fig.add_trace(
+    go.Bar(
+        x=results_df['Hour'],
+        y=results_df['Forecasted_Calls'],
+        name='Volume',
+        marker_color='lightblue'
+    ),
+    row=1, col=1
+)
+fig.add_trace(
+    go.Scatter(
+        x=results_df['Hour'],
+        y=results_df['Prop_Sched_HC'],
+        name='Staffing',
+        yaxis='y2',
+        line=dict(color='red', width=2)
+    ),
+    row=1, col=1
+)
 
-ax1b = ax1.twinx()
-ax1b.plot(results_df['Hour'], results_df['Prop_Sched_HC'], 'r-', linewidth=2, label='Staffing')
-ax1b.set_ylabel('Staffing (agents)', color='red')
-ax1b.tick_params(axis='y', labelcolor='red')
-ax1.set_title('Volume vs Staffing')
+# Add secondary y-axis for chart 1
+fig.update_yaxes(title_text="Volume", row=1, col=1)
+fig.update_yaxes(title_text="Staffing", secondary_y=True, row=1, col=1)
 
 # Chart 2: Occupancy Trend
-ax2 = axes[0, 1]
-ax2.plot(results_df['Hour'], results_df['Occupancy_Pct'], 'g-', linewidth=3)
-ax2.fill_between(results_df['Hour'], results_df['Occupancy_Pct'], alpha=0.3, color='green')
-ax2.axhline(y=hbh_target_occ, color='orange', linestyle='--', label=f'Target: {hbh_target_occ}%')
-ax2.set_xlabel('Hour')
-ax2.set_ylabel('Occupancy (%)')
-ax2.set_title('Occupancy Trend')
-ax2.legend()
+fig.add_trace(
+    go.Scatter(
+        x=results_df['Hour'],
+        y=results_df['Occupancy_Pct'],
+        name='Occupancy',
+        line=dict(color='green', width=3),
+        fill='tozeroy'
+    ),
+    row=1, col=2
+)
+fig.add_hline(y=hbh_target_occ, line_dash="dash", line_color="orange", 
+             row=1, col=2)
+fig.update_yaxes(title_text="Occupancy (%)", row=1, col=2)
 
 # Chart 3: SLA Performance
-ax3 = axes[1, 0]
-ax3.plot(results_df['Hour'], results_df['SLA_Pct'], 'purple', linewidth=3, marker='o')
-ax3.axhline(y=hbh_target_sla, color='darkgreen', linestyle='--', label=f'Target: {hbh_target_sla}%')
-ax3.set_xlabel('Hour')
-ax3.set_ylabel('SLA (%)')
-ax3.set_title('SLA Performance')
-ax3.legend()
+fig.add_trace(
+    go.Scatter(
+        x=results_df['Hour'],
+        y=results_df['SLA_Pct'],
+        name='SLA',
+        line=dict(color='purple', width=3),
+        mode='lines+markers'
+    ),
+    row=2, col=1
+)
+fig.add_hline(y=hbh_target_sla, line_dash="dash", line_color="darkgreen",
+             row=2, col=1)
+fig.update_yaxes(title_text="SLA (%)", row=2, col=1)
 
 # Chart 4: Risk Heatmap
-ax4 = axes[1, 1]
-risk_colors = {'Low': 'green', 'Medium': 'yellow', 'High': 'orange', 'Severe': 'red'}
-risk_color_list = [risk_colors[r] for r in results_df['Risk_Level']]
+risk_colors = {'Low': 0, 'Medium': 1, 'High': 2, 'Severe': 3}
+risk_numeric = [risk_colors[r] for r in results_df['Risk_Level']]
 
-for i, (hour, risk) in enumerate(zip(results_df['Hour'], results_df['Risk_Level'])):
-    ax4.bar(i, 1, color=risk_colors[risk], edgecolor='black')
-    
-ax4.set_xlabel('Hour')
-ax4.set_ylabel('Risk Level')
-ax4.set_title('Risk Heatmap')
-ax4.set_xticks(range(len(results_df)))
-ax4.set_xticklabels(results_df['Hour'], rotation=45)
-ax4.set_ylim(0, 1)
+fig.add_trace(
+    go.Heatmap(
+        x=results_df['Hour'],
+        y=['Risk'],
+        z=[risk_numeric],  # 2D array for heatmap
+        colorscale=[[0, 'green'], [0.3, 'yellow'], [0.6, 'orange'], [1, 'red']],
+        showscale=True,
+        colorbar=dict(title="Risk Level", tickvals=[0, 1, 2, 3], ticktext=['Low', 'Medium', 'High', 'Severe']),
+        hovertext=results_df['Risk_Level'],
+        hoverinfo='text'
+    ),
+    row=2, col=2
+)
+fig.update_yaxes(title_text="Risk", row=2, col=2)
 
-# Create custom legend for risk levels
-from matplotlib.patches import Patch
-legend_elements = [
-    Patch(facecolor='green', label='Low'),
-    Patch(facecolor='yellow', label='Medium'),
-    Patch(facecolor='orange', label='High'),
-    Patch(facecolor='red', label='Severe')
-]
-ax4.legend(handles=legend_elements, loc='upper right')
+# Update layout
+fig.update_layout(
+    height=600, 
+    showlegend=False,
+    title_text="Hour-by-Hour Analysis Dashboard",
+    title_x=0.5
+)
 
-plt.tight_layout()
-st.pyplot(fig) 
+# Update x-axis labels for all subplots
+fig.update_xaxes(title_text="Hour of Day", row=2, col=1)
+fig.update_xaxes(title_text="Hour of Day", row=2, col=2)
+fig.update_xaxes(title_text="Hour of Day", row=1, col=1)
+fig.update_xaxes(title_text="Hour of Day", row=1, col=2)
+
+st.plotly_chart(fig, use_container_width=True)
 # END MATPLOTLIB EDITS ----
                             
                             # PRECARIOUS HOURS RECOMMENDATION PANEL
