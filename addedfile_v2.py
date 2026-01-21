@@ -132,6 +132,43 @@ def classify_risk(sla_percent, occupancy_percent, target_sla, target_occ):
     else:  # Significantly below target
         return "❌ Critical", "Severe"
 
+### - 1-21-2026
+
+def calculate_occupancy_sla_ratio(volume: float, AHT: float, headcount: float, asa_target: float, interval_seconds: int = 3600) -> str:
+    """
+    Calculate and format Occupancy:SLA ratio for given parameters.
+    
+    Parameters:
+    -----------
+    volume : float
+        Call volume per interval
+    AHT : float
+        Average Handle Time in seconds
+    headcount : float
+        Number of agents
+    asa_target : float
+        ASA target in seconds
+    interval_seconds : int, default=3600
+        Interval duration in seconds (default 1 hour)
+        
+    Returns:
+    --------
+    str
+        Formatted as "Occupancy:SLA" (e.g., "75:92")
+    """
+    # Calculate occupancy
+    occupancy = calculate_occupancy(volume, AHT, headcount, interval_seconds) * 100
+    
+    # Calculate SLA
+    traffic_intensity = (volume * AHT) / 3600
+    sla = calculate_service_level(headcount, traffic_intensity, AHT, asa_target) * 100
+    
+    # Format as rounded integers
+    return f"{int(round(occupancy))}:{int(round(sla))}"
+
+### end 1-21-2026
+
+
 # ========================
 # SIDEBAR FOR GLOBAL SETTINGS
 # ========================
