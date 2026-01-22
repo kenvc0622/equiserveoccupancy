@@ -164,7 +164,8 @@ def calculate_occupancy_sla_ratio(volume: float, AHT: float, headcount: float, a
     sla = calculate_service_level(headcount, traffic_intensity, AHT, asa_target) * 100
     
     # Format as rounded integers
-    return f"{int(round(occupancy))}:{int(round(sla))}"
+    #return f"{int(round(occupancy))}:{int(round(sla))}"
+    return f"{int(round(occupancy))}|{int(round(sla))}"
 
 ### end 1-21-2026
 
@@ -1154,7 +1155,8 @@ def main():
                                     ) * 100
                                     
                                     # Format as ratio (Occupancy:SLA)
-                                    ratio = f"{int(round(occupancy))}:{int(round(sla))}"
+                                    #ratio = f"{int(round(occupancy))}:{int(round(sla))}"
+                                    ratio = f"{int(round(occupancy))}|{int(round(sla))}"
                                     hour_data[str(hc)] = ratio
                                 
                                 scenario_matrix.append(hour_data)
@@ -1223,7 +1225,8 @@ def main():
                                 hc_data = []
                                 for _, row in results_df.iterrows():
                                     ratio = scenario_df.loc[scenario_df['Hour'] == row['Hour'], str(hc)].values[0]
-                                    occ, sla = map(int, ratio.split(':'))
+                                    #occ, sla = map(int, ratio.split(':'))
+                                    occ, sla = map(int, ratio.split('|'))
                                     # Calculate a score (higher is better - both high occupancy and high SLA)
                                     score = (min(occ, 85) / 85 * 50) + (min(sla, 95) / 95 * 50)
                                     hc_data.append(score)
